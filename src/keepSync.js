@@ -35,6 +35,51 @@ function normalizeText(value, fallback = '') {
   return String(value);
 }
 
+function isCheckedListItem(listItem = {}) {
+  const value = listItem.checked ?? listItem.isChecked;
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function normalizeOrderValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  const text = normalizeText(value, '').trim();
+  return text || null;
+}
+
+function getListItemOrderValue(listItem = {}) {
+  const orderFields = ['sort', 'sortValue', 'sortOrder', 'order', 'position', 'rank', 'index'];
+  for (const field of orderFields) {
+    const value = normalizeOrderValue(listItem[field]);
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function compareOrderValues(a, b) {
+  if (a.orderValue === null || b.orderValue === null) {
+    return a.sourceIndex - b.sourceIndex;
+  }
+
+  if (typeof a.orderValue === 'number' && typeof b.orderValue === 'number') {
+    return a.orderValue - b.orderValue || a.sourceIndex - b.sourceIndex;
+  }
+
+  return String(a.orderValue).localeCompare(String(b.orderValue), undefined, {
+    numeric: true,
+    sensitivity: 'base'
+  }) || a.sourceIndex - b.sourceIndex;
+}
+
 function normalizeListItems(item = {}) {
   const listItems = item.items || item.listItems || item.listContent;
   if (!Array.isArray(listItems)) {
@@ -42,15 +87,29 @@ function normalizeListItems(item = {}) {
   }
 
   return listItems
-    .map((listItem) => {
+    .map((listItem, sourceIndex) => {
       const text = normalizeText(listItem.text || listItem.name || listItem.content).trim();
       if (!text) {
         return null;
       }
 
-      return `${listItem.checked || listItem.isChecked ? '[x]' : '[ ]'} ${text}`;
+      const checked = isCheckedListItem(listItem);
+      return {
+        checked,
+        sourceIndex,
+        orderValue: getListItemOrderValue(listItem),
+        text
+      };
     })
     .filter(Boolean)
+    .sort((a, b) => {
+      if (a.checked !== b.checked) {
+        return a.checked ? 1 : -1;
+      }
+
+      return compareOrderValues(a, b);
+    })
+    .map((listItem) => `${listItem.checked ? '[x]' : '[ ]'} ${listItem.text}`)
     .join('\n');
 }
 
@@ -104,7 +163,7 @@ function toKeepMetadata(item = {}, sourceHash) {
 function normalizeKeepNotes(items = []) {
   return items.map((item) => {
     const remoteId = normalizeRemoteId(item.id);
-    const title = normalizeText(item.title ?? item.name, 'Imported note') || 'Imported note';
+    const title = normalizeText(item.title ?? item.name, '');
     const body = normalizeBody(item);
     const color = normalizeColor(item.color);
     const createdAt = item.createdAt || item.created || null;

@@ -153,11 +153,16 @@ def serialize_list_items(note):
     serialized = []
     for item in items:
         text = getattr(item, "text", None) or getattr(item, "title", None) or ""
-        serialized.append({
+        payload = {
             "id": getattr(item, "id", None),
             "text": text,
             "checked": bool(getattr(item, "checked", False)),
-        })
+        }
+        for field in ("sort", "sortValue", "sortOrder", "order", "position", "rank", "index"):
+            value = getattr(item, field, None)
+            if value is not None:
+                payload[field] = value if isinstance(value, (str, int, float, bool)) else str(value)
+        serialized.append(payload)
     return serialized
 
 

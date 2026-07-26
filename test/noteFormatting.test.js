@@ -1,9 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  formatTitle,
   parseChecklist,
   renderNoteBodyHtml
 } = require('../src/noteFormatting');
+
+test('keeps blank titles blank', () => {
+  assert.equal(formatTitle(''), '');
+  assert.equal(formatTitle('   '), '');
+});
 
 test('renders active checklist items above a collapsed completed summary', () => {
   const html = renderNoteBodyHtml('\u2611 Done\n\u2610 Todo\n[x] Old\n[ ] New');
@@ -12,6 +18,8 @@ test('renders active checklist items above a collapsed completed summary', () =>
   assert.ok(html.includes('2 completed items'));
   assert.ok(html.indexOf('Todo') < html.indexOf('2 completed items'));
   assert.ok(html.indexOf('New') < html.indexOf('2 completed items'));
+  assert.ok(html.indexOf('Todo') < html.indexOf('New'));
+  assert.ok(html.indexOf('2 completed items') < html.indexOf('Old'));
 });
 
 test('does not treat mixed regular text as a checklist', () => {

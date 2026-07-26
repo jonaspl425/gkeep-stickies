@@ -9,6 +9,9 @@ const clearButton = document.getElementById('clear-notes');
 const openKeepButton = document.getElementById('open-keep');
 const keepStatusPill = document.getElementById('keep-status-pill');
 const keepStatusText = document.getElementById('keep-status-text');
+const keepAccountEmail = document.getElementById('keep-account-email');
+const settingsToggleButton = document.getElementById('settings-toggle');
+const settingsMenu = document.getElementById('settings-menu');
 const onboardingModal = document.getElementById('keep-onboarding');
 const closeOnboardingButton = document.getElementById('close-onboarding');
 const onboardingStatus = document.getElementById('keep-onboarding-status');
@@ -25,13 +28,111 @@ const scopeTrashInput = document.getElementById('scope-trash');
 const scopeArchivedInput = document.getElementById('scope-archived');
 const scopeTrashedInput = document.getElementById('scope-trashed');
 const formatter = window.noteFormatting;
+const PIN_ICON_HTML = `
+  <svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M9 4h6" />
+    <path d="M10 4l1 7-4 4v2h10v-2l-4-4 1-7" />
+    <path d="M12 17v4" />
+  </svg>
+`;
 
 let notes = [];
 let pendingPreview = null;
+let draggedNoteId = null;
+
+function closeSettingsMenu() {
+  settingsMenu.classList.add('hidden');
+  settingsToggleButton.setAttribute('aria-expanded', 'false');
+}
+
+function toggleSettingsMenu() {
+  const isHidden = settingsMenu.classList.toggle('hidden');
+  settingsToggleButton.setAttribute('aria-expanded', String(!isHidden));
+}
 
 async function refreshNotes() {
   notes = await window.electronAPI.loadNotes();
   renderNotes();
+}
+
+function getNoteCards() {
+  return Array.from(noteList.querySelectorAll('.list-card[data-note-id]'));
+}
+
+function getDraggedCard() {
+  return getNoteCards().find((card) => card.dataset.noteId === draggedNoteId) || null;
+}
+
+function clearNoteDragState() {
+  draggedNoteId = null;
+  getNoteCards().forEach((card) => {
+    card.classList.remove('dragging', 'drag-over');
+  });
+}
+
+function shouldInsertBefore(event, targetCard) {
+  const rect = targetCard.getBoundingClientRect();
+  const verticalOffset = event.clientY - (rect.top + rect.height / 2);
+  if (Math.abs(verticalOffset) > rect.height / 4) {
+    return verticalOffset < 0;
+  }
+
+  return event.clientX < rect.left + rect.width / 2;
+}
+
+function moveDraggedCard(targetCard, event) {
+  const draggedCard = getDraggedCard();
+  if (!draggedCard || draggedCard === targetCard) {
+    return;
+  }
+
+  const insertBefore = shouldInsertBefore(event, targetCard) ? targetCard : targetCard.nextSibling;
+  if (insertBefore === draggedCard || insertBefore === draggedCard.nextSibling) {
+    return;
+  }
+
+  noteList.insertBefore(draggedCard, insertBefore);
+}
+
+async function persistNoteOrderFromDom() {
+  const orderedIds = getNoteCards().map((card) => card.dataset.noteId);
+  if (!orderedIds.length) {
+    return;
+  }
+
+  notes = await window.electronAPI.reorderNotes(orderedIds);
+  renderNotes();
+}
+
+function handleNoteDragOver(event) {
+  if (!draggedNoteId) {
+    return;
+  }
+
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  moveDraggedCard(event.currentTarget, event);
+}
+
+async function handleNoteDrop(event) {
+  if (!draggedNoteId) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  try {
+    await persistNoteOrderFromDom();
+  } finally {
+    clearNoteDragState();
+  }
+}
+
+function renderNoteTitleHtml(title) {
+  const formattedTitle = formatter.formatTitle(title);
+  return formattedTitle
+    ? `<h2 class="note-title">${formatter.escapeHtml(formattedTitle)}</h2>`
+    : '';
 }
 
 function renderNotes() {
@@ -40,21 +141,40 @@ function renderNotes() {
   notes.forEach((note) => {
     const card = document.createElement('article');
     card.className = `note-card list-card${note.positionLocked ? ' position-locked' : ''}`;
+    card.dataset.noteId = note.id;
     card.style.background = formatter.getNoteColor(note.color);
     card.innerHTML = `
-      <button class="icon-btn note-card-delete" data-action="delete" data-id="${escapeHtml(note.id)}" aria-label="Delete note" title="Delete note">&times;</button>
-      ${note.positionLocked ? '<span class="note-lock-badge" title="Position locked">&#128204;</span>' : ''}
+      <button class="icon-btn note-drag-handle" data-action="reorder" data-id="${escapeHtml(note.id)}" aria-label="Move note" title="Drag to reorder note" draggable="true">
+        <span aria-hidden="true">&#8942;&#8942;</span>
+      </button>
+      <button class="icon-btn note-card-hide" data-action="hide" data-id="${escapeHtml(note.id)}" aria-label="Hide sticky note" title="Hide sticky note">&times;</button>
+      ${note.positionLocked ? `<span class="note-lock-badge" title="Position locked">${PIN_ICON_HTML}</span>` : ''}
       <div class="note-content">
-        <h2 class="note-title">${formatter.escapeHtml(formatter.formatTitle(note.title))}</h2>
+        ${renderNoteTitleHtml(note.title)}
         <div class="note-body-display">${formatter.renderNoteBodyHtml(note.body || '', { emptyText: '' })}</div>
       </div>
       <small>${formatNoteDate(note.updatedAt || note.createdAt)}</small>
     `;
 
-    card.querySelector('[data-action="delete"]').addEventListener('click', async (event) => {
+    const dragHandle = card.querySelector('[data-action="reorder"]');
+    dragHandle.addEventListener('click', (event) => {
+      event.preventDefault();
       event.stopPropagation();
-      await window.electronAPI.deleteNote(note.id);
-      await refreshNotes();
+    });
+    dragHandle.addEventListener('mousedown', (event) => {
+      event.stopPropagation();
+    });
+    dragHandle.addEventListener('dragstart', (event) => {
+      draggedNoteId = note.id;
+      card.classList.add('dragging');
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', note.id);
+    });
+    dragHandle.addEventListener('dragend', clearNoteDragState);
+
+    card.querySelector('[data-action="hide"]').addEventListener('click', (event) => {
+      event.stopPropagation();
+      window.electronAPI.hideNote(note.id);
     });
 
     card.querySelectorAll('details').forEach((details) => {
@@ -62,6 +182,9 @@ function renderNotes() {
         event.stopPropagation();
       });
     });
+
+    card.addEventListener('dragover', handleNoteDragOver);
+    card.addEventListener('drop', handleNoteDrop);
 
     card.addEventListener('click', async () => {
       await window.electronAPI.showNote(note.id);
@@ -72,7 +195,7 @@ function renderNotes() {
 }
 
 newNoteButton.addEventListener('click', async () => {
-  await window.electronAPI.createNote({ title: 'New note', body: '' });
+  await window.electronAPI.createNote({ title: '', body: '' });
   await refreshNotes();
 });
 
@@ -86,6 +209,29 @@ clearButton.addEventListener('click', async () => {
   renderNotes();
   await window.electronAPI.clearNotes();
   await refreshNotes();
+});
+
+settingsToggleButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleSettingsMenu();
+});
+
+settingsMenu.addEventListener('click', (event) => {
+  if (event.target.closest('button')) {
+    closeSettingsMenu();
+  }
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.settings-menu-shell')) {
+    closeSettingsMenu();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeSettingsMenu();
+  }
 });
 
 syncKeepButton.addEventListener('click', async () => {
@@ -196,16 +342,54 @@ async function refreshKeepStatus() {
 
 function updateKeepStatus(status = {}) {
   const connected = Boolean(status.connected);
-  keepStatusPill.textContent = connected ? 'Connected' : 'Local only';
-  keepStatusPill.className = `keep-status-pill ${connected ? 'connected' : 'disconnected'}`;
-  const detail = connected
-    ? `${status.email || 'Google Keep'} - ${status.status || 'Ready'}`
-    : status.status || 'Connect Google Keep or import a Keep export JSON file.';
+  const syncState = getSyncState(status);
+  keepStatusPill.textContent = syncState.label;
+  keepStatusPill.className = `keep-status-pill ${syncState.className}`;
+  keepAccountEmail.textContent = connected ? status.email || 'Google Keep' : 'Not connected';
+  const detail = status.status || (connected
+    ? 'Ready'
+    : 'Connect Google Keep or import a Keep export JSON file.');
   keepStatusText.textContent = detail;
+}
+
+function getSyncState(status = {}) {
+  const message = String(status.status || '').toLowerCase();
+  if (status.error || /failed|error|invalid|timed out/.test(message)) {
+    return { label: 'Problem', className: 'sync-state-problem' };
+  }
+
+  if (!status.connected) {
+    return { label: 'Local only', className: 'sync-state-neutral' };
+  }
+
+  if (/edit saved locally|saving|syncing|pushing|pulling|authenticating|applying|testing|preview/.test(message)) {
+    return { label: 'Unsaved changes', className: 'sync-state-unsaved' };
+  }
+
+  return { label: 'Synced', className: 'sync-state-synced' };
 }
 
 window.electronAPI.onKeepStatusChanged((status) => {
   updateKeepStatus(status);
+});
+
+noteList.addEventListener('dragover', (event) => {
+  if (draggedNoteId) {
+    event.preventDefault();
+  }
+});
+
+noteList.addEventListener('drop', async (event) => {
+  if (!draggedNoteId) {
+    return;
+  }
+
+  event.preventDefault();
+  try {
+    await persistNoteOrderFromDom();
+  } finally {
+    clearNoteDragState();
+  }
 });
 
 function getScopeSettings() {

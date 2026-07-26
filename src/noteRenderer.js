@@ -1,7 +1,7 @@
 const titleInput = document.getElementById('note-title');
 const bodyInput = document.getElementById('note-body');
 const bodyPreview = document.getElementById('note-body-preview');
-const deleteButton = document.getElementById('delete-btn');
+const hideButton = document.getElementById('hide-btn');
 const pinButton = document.getElementById('pin-btn');
 const colorButton = document.getElementById('color-btn');
 const colorPalette = document.getElementById('color-palette');
@@ -9,12 +9,13 @@ const currentColorSwatch = document.getElementById('current-color-swatch');
 const resizeHandle = document.getElementById('resize-handle');
 const card = document.getElementById('note-card');
 const formatter = window.noteFormatting;
+const WINDOW_DRAG_THRESHOLD_PX = 4;
 
 let currentNote = null;
-let dragging = false;
-let dragStart = { x: 0, y: 0 };
-let latestDragPosition = null;
-let dragFrame = null;
+let resizing = false;
+let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
+let windowDrag = null;
+let suppressPreviewClickUntil = 0;
 
 function isBodyEditing() {
   return !bodyInput.classList.contains('hidden');
@@ -81,6 +82,96 @@ function patchCurrentNote(patch) {
   window.electronAPI.patchNote(currentNote.id, patch);
 }
 
+function isWindowDragTarget(target) {
+  const element = target?.nodeType === Node.ELEMENT_NODE ? target : target?.parentElement;
+  if (!element) {
+    return false;
+  }
+
+  return !element.closest([
+    'input',
+    'textarea',
+    'button',
+    'a',
+    'summary',
+    '.color-palette',
+    '.resize-handle'
+  ].join(','));
+}
+
+function getCurrentWindowPosition() {
+  const x = Number.isFinite(window.screenX) ? window.screenX : currentNote?.x;
+  const y = Number.isFinite(window.screenY) ? window.screenY : currentNote?.y;
+
+  return {
+    x: Number.isFinite(x) ? x : 140,
+    y: Number.isFinite(y) ? y : 140
+  };
+}
+
+function getDraggedWindowPosition(event, drag = windowDrag) {
+  return {
+    x: Math.round(drag.startX + (event.screenX - drag.startScreenX)),
+    y: Math.round(drag.startY + (event.screenY - drag.startScreenY))
+  };
+}
+
+function startWindowDrag(event) {
+  if (
+    event.button !== 0 ||
+    resizing ||
+    !currentNote ||
+    currentNote.positionLocked ||
+    !isWindowDragTarget(event.target)
+  ) {
+    return;
+  }
+
+  const position = getCurrentWindowPosition();
+  windowDrag = {
+    startScreenX: event.screenX,
+    startScreenY: event.screenY,
+    startX: position.x,
+    startY: position.y,
+    moved: false
+  };
+}
+
+function updateWindowDrag(event) {
+  if (!windowDrag || !currentNote) {
+    return;
+  }
+
+  const dx = event.screenX - windowDrag.startScreenX;
+  const dy = event.screenY - windowDrag.startScreenY;
+  if (!windowDrag.moved && Math.hypot(dx, dy) < WINDOW_DRAG_THRESHOLD_PX) {
+    return;
+  }
+
+  windowDrag.moved = true;
+  const position = getDraggedWindowPosition(event);
+  currentNote = { ...currentNote, ...position };
+  window.electronAPI.moveWindowLive({ id: currentNote.id, ...position });
+  event.preventDefault();
+}
+
+async function finishWindowDrag(event) {
+  if (!windowDrag) {
+    return;
+  }
+
+  const drag = windowDrag;
+  windowDrag = null;
+  if (!drag.moved || !currentNote) {
+    return;
+  }
+
+  const position = getDraggedWindowPosition(event, drag);
+  suppressPreviewClickUntil = Date.now() + 250;
+  currentNote = { ...currentNote, ...position };
+  await window.electronAPI.moveWindow({ id: currentNote.id, ...position });
+}
+
 function showBodyEditor() {
   if (isBodyEditing()) {
     return;
@@ -142,37 +233,6 @@ function buildColorPalette() {
   });
 }
 
-function isInteractiveTarget(target) {
-  return Boolean(target.closest('input, textarea, button, .note-body-preview, .color-palette, .resize-handle, summary'));
-}
-
-function flushDragPosition() {
-  dragFrame = null;
-  if (!dragging || !currentNote || currentNote.positionLocked || !latestDragPosition) {
-    return;
-  }
-
-  currentNote = {
-    ...currentNote,
-    x: latestDragPosition.x,
-    y: latestDragPosition.y
-  };
-  window.electronAPI.moveWindowLive({
-    id: currentNote.id,
-    x: latestDragPosition.x,
-    y: latestDragPosition.y
-  });
-}
-
-function scheduleDragPosition(x, y) {
-  latestDragPosition = { x, y };
-  if (dragFrame !== null) {
-    return;
-  }
-
-  dragFrame = window.requestAnimationFrame(flushDragPosition);
-}
-
 window.electronAPI.onNoteData((note) => {
   applyNote(note);
 });
@@ -212,6 +272,12 @@ bodyInput.addEventListener('keydown', (event) => {
 });
 
 bodyPreview.addEventListener('click', (event) => {
+  if (Date.now() < suppressPreviewClickUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
   if (event.target.closest('summary')) {
     return;
   }
@@ -226,9 +292,9 @@ bodyPreview.addEventListener('keydown', (event) => {
   }
 });
 
-deleteButton.addEventListener('click', async () => {
+hideButton.addEventListener('click', () => {
   if (currentNote) {
-    await window.electronAPI.deleteNote(currentNote.id);
+    window.electronAPI.hideNote(currentNote.id);
   }
 });
 
@@ -255,61 +321,6 @@ document.addEventListener('click', (event) => {
   }
 });
 
-card.addEventListener('mousedown', (event) => {
-  if (currentNote?.positionLocked || isInteractiveTarget(event.target)) {
-    return;
-  }
-
-  event.preventDefault();
-  dragging = true;
-  dragStart = {
-    x: event.clientX,
-    y: event.clientY
-  };
-  card.style.cursor = 'grabbing';
-});
-
-document.addEventListener('mousemove', (event) => {
-  if (!dragging || !currentNote || currentNote.positionLocked) {
-    return;
-  }
-
-  const nextX = Math.max(0, event.screenX - dragStart.x);
-  const nextY = Math.max(0, event.screenY - dragStart.y);
-  scheduleDragPosition(nextX, nextY);
-});
-
-document.addEventListener('mouseup', async () => {
-  const wasDragging = dragging;
-  const finalPosition = latestDragPosition;
-  dragging = false;
-  latestDragPosition = null;
-  if (dragFrame !== null) {
-    window.cancelAnimationFrame(dragFrame);
-    dragFrame = null;
-  }
-
-  if (wasDragging && currentNote && !currentNote.positionLocked && finalPosition) {
-    currentNote = { ...currentNote, x: finalPosition.x, y: finalPosition.y };
-    window.electronAPI.moveWindowLive({
-      id: currentNote.id,
-      x: finalPosition.x,
-      y: finalPosition.y
-    });
-    await window.electronAPI.moveWindow({
-      id: currentNote.id,
-      x: finalPosition.x,
-      y: finalPosition.y,
-      persist: true
-    });
-  }
-
-  updateLockState();
-});
-
-let resizing = false;
-let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
-
 resizeHandle.addEventListener('mousedown', (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -326,7 +337,11 @@ resizeHandle.addEventListener('mousedown', (event) => {
   };
 });
 
+card.addEventListener('mousedown', startWindowDrag);
+
 document.addEventListener('mousemove', (event) => {
+  updateWindowDrag(event);
+
   if (!resizing || !currentNote) {
     return;
   }
@@ -334,10 +349,13 @@ document.addEventListener('mousemove', (event) => {
   const nextWidth = Math.max(180, resizeStart.width + (event.clientX - resizeStart.x));
   const nextHeight = Math.max(160, resizeStart.height + (event.clientY - resizeStart.y));
   currentNote = { ...currentNote, width: nextWidth, height: nextHeight };
-  window.electronAPI.setWindowBounds({ id: currentNote.id, x: currentNote.x, y: currentNote.y, width: nextWidth, height: nextHeight });
+  window.electronAPI.setWindowBounds({ id: currentNote.id, width: nextWidth, height: nextHeight });
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('mouseup', (event) => {
+  finishWindowDrag(event).catch((error) => {
+    console.error('Failed to persist note position:', error);
+  });
   resizing = false;
 });
 

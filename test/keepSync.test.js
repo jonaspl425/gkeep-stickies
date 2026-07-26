@@ -11,17 +11,22 @@ test('normalizes Keep note payloads into app notes', () => {
     },
     {
       title: 'Empty note'
+    },
+    {
+      text: 'No title'
     }
   ];
 
   const result = normalizeKeepNotes(input);
 
-  assert.equal(result.length, 2);
+  assert.equal(result.length, 3);
   assert.equal(result[0].title, 'Weekly plan');
   assert.equal(result[0].body, 'Ship the release');
   assert.equal(result[0].importedFromKeep, true);
   assert.equal(result[1].title, 'Empty note');
   assert.equal(result[1].body, '');
+  assert.equal(result[2].title, '');
+  assert.equal(result[2].body, 'No title');
 });
 
 test('syncKeepNotes merges remote Keep notes into existing local notes without duplicating them', async () => {
@@ -153,7 +158,23 @@ test('normalizes checklist-style Keep export items into multiline bodies', () =>
   ]);
 
   assert.equal(result[0].title, 'Groceries');
-  assert.equal(result[0].body, '[x] Milk\n[ ] Eggs');
+  assert.equal(result[0].body, '[ ] Eggs\n[x] Milk');
   assert.equal(result[0].keepFields.archived, true);
   assert.equal(result[0].keepFields.trashed, true);
+});
+
+test('normalizes checklist items into website display order', () => {
+  const result = normalizeKeepNotes([
+    {
+      title: 'Groceries',
+      items: [
+        { text: 'Done second', checked: true, sortValue: '2' },
+        { text: 'Open second', checked: false, sortValue: '2' },
+        { text: 'Open first', checked: false, sortValue: '1' },
+        { text: 'Done first', checked: true, sortValue: '1' }
+      ]
+    }
+  ]);
+
+  assert.equal(result[0].body, '[ ] Open first\n[ ] Open second\n[x] Done first\n[x] Done second');
 });

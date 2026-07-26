@@ -2,13 +2,47 @@
   "name": "sticky-notes-desktop",
   "version": "1.0.0",
   "private": true,
+  "author": "jonaspl",
   "description": "Persistent desktop sticky notes with Google Keep account sync and import/export.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "start:detached": "wscript.exe launch-sticky-notes.vbs",
+    "test": "node --test",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.stickynotes.desktop",
+    "productName": "Sticky Notes",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      ".python-packages/**/*",
+      "requirements.txt",
+      "package.json",
+      "!src/keep_bridge/__pycache__/**",
+      "!.python-packages/**/__pycache__/**",
+      "!.python-packages/**/*.pyc"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${arch}-portable.${ext}"
+    }
   },
   "devDependencies": {
-    "electron": "^35.0.0"
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.12"
   }
 }

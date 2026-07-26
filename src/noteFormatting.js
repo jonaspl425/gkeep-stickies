@@ -9,10 +9,10 @@
     root.noteFormatting = api;
   }
 })(typeof window !== 'undefined' ? window : globalThis, function createNoteFormatting() {
-  const DEFAULT_COLOR = '#fff59d';
+  const DEFAULT_COLOR = '#ffffff';
   const NOTE_COLORS = [
-    { name: 'Yellow', value: '#fff59d' },
     { name: 'White', value: '#ffffff' },
+    { name: 'Yellow', value: '#fff59d' },
     { name: 'Coral', value: '#f28b82' },
     { name: 'Orange', value: '#fbbc04' },
     { name: 'Amber', value: '#ffe082' },
@@ -49,7 +49,7 @@
 
   function formatTitle(value = '') {
     const title = normalizeText(value).trim();
-    return title || 'Untitled';
+    return title;
   }
 
   function restoreAllowedTags(html) {

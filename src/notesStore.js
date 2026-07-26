@@ -7,7 +7,7 @@ const BODY_LIMIT = 20000;
 const MIN_WIDTH = 180;
 const MIN_HEIGHT = 160;
 const MAX_WINDOW_VALUE = 10000;
-const DEFAULT_COLOR = '#fff59d';
+const DEFAULT_COLOR = '#ffffff';
 
 function sanitizeText(value, fallback = '', limit = BODY_LIMIT) {
   if (value === null || value === undefined) {
@@ -132,7 +132,7 @@ function sanitizeNoteRecord(input = {}, options = {}) {
   const now = options.now || new Date().toISOString();
   const note = {
     id: sanitizeId(input.id),
-    title: sanitizeText(input.title, 'New note', TITLE_LIMIT),
+    title: sanitizeText(input.title, '', TITLE_LIMIT),
     body: sanitizeText(input.body, '', BODY_LIMIT),
     x: sanitizeNumber(input.x, 140),
     y: sanitizeNumber(input.y, 140),
@@ -158,13 +158,28 @@ function sanitizeNoteRecord(input = {}, options = {}) {
   return note;
 }
 
-function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes.json')) {
+function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes.json'), options = {}) {
+  const migrateFrom = typeof options.migrateFrom === 'string' ? options.migrateFrom : null;
+
+  function migrateLegacyStorage() {
+    if (!migrateFrom || fs.existsSync(storagePath)) {
+      return;
+    }
+
+    const sourcePath = path.resolve(migrateFrom);
+    const targetPath = path.resolve(storagePath);
+    if (sourcePath !== targetPath && fs.existsSync(sourcePath)) {
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+  }
+
   function ensureStorageDir() {
     fs.mkdirSync(path.dirname(storagePath), { recursive: true });
   }
 
   function ensureStorageFile() {
     ensureStorageDir();
+    migrateLegacyStorage();
     const exists = fs.existsSync(storagePath);
     if (!exists) {
       fs.writeFileSync(storagePath, '[]', 'utf8');
@@ -304,7 +319,7 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
     const now = new Date().toISOString();
     const note = sanitizeNoteRecord({
       id: input.id || randomUUID(),
-      title: input.title || 'New note',
+      title: input.title ?? '',
       body: input.body || '',
       x: input.x ?? 140,
       y: input.y ?? 140,
@@ -387,7 +402,7 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
     return notes[index];
   }
 
-  function markNoteSynced(id, keepPatch = {}, keepFieldsPatch = {}) {
+  function markNoteSynced(id, keepPatch = {}, keepFieldsPatch = {}, options = {}) {
     const notes = readNotes();
     const index = notes.findIndex((note) => note.id === id);
     if (index === -1) {
@@ -395,14 +410,21 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
     }
 
     const now = new Date().toISOString();
+    const existingKeep = createDefaultKeepMetadata(notes[index].keep || {});
+    const expectedLocalRevision = Number.isFinite(options.expectedLocalRevision)
+      ? options.expectedLocalRevision
+      : null;
+    const hasNewerLocalChanges = expectedLocalRevision !== null && existingKeep.localRevision > expectedLocalRevision;
+    const dirtyFields = hasNewerLocalChanges ? existingKeep.dirtyFields : [];
+
     notes[index] = sanitizeNoteRecord({
       ...notes[index],
       keep: {
-        ...createDefaultKeepMetadata(notes[index].keep || {}),
+        ...existingKeep,
         ...keepPatch,
         lastSyncedAt: now,
-        dirtyFields: [],
-        syncState: 'synced',
+        dirtyFields,
+        syncState: dirtyFields.length ? 'dirty' : 'synced',
         lastError: null
       },
       keepFields: {
@@ -420,6 +442,22 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
     return notes;
   }
 
+  function reorderNotes(orderedIds = []) {
+    const notes = readNotes();
+    const requestedIds = Array.isArray(orderedIds)
+      ? orderedIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
+      : [];
+    const uniqueIds = Array.from(new Set(requestedIds));
+    const uniqueIdSet = new Set(uniqueIds);
+    const notesById = new Map(notes.map((note) => [note.id, note]));
+    const reordered = uniqueIds
+      .filter((id) => notesById.has(id))
+      .map((id) => notesById.get(id));
+    const remaining = notes.filter((note) => !uniqueIdSet.has(note.id));
+
+    return writeNotes([...reordered, ...remaining]);
+  }
+
   return {
     loadNotes,
     saveNotes,
@@ -429,6 +467,7 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
     patchNote,
     markNoteDirty,
     markNoteSynced,
+    reorderNotes,
     deleteNote,
     resetNotes
   };

@@ -9,22 +9,41 @@
   <body>
     <div class="app-shell">
       <header class="app-header">
-        <div>
+        <div class="app-heading">
           <h1>Sticky Notes</h1>
-          <p>Persistent desktop sticky notes with optional Google Keep sync.</p>
-          <div class="keep-status-card" id="keep-status-card">
-            <span class="keep-status-pill" id="keep-status-pill">Local only</span>
+          <div class="keep-status-card" id="keep-status-card" role="status" aria-live="polite">
+            <div class="keep-account-row">
+              <span class="keep-status-pill" id="keep-status-pill">Local only</span>
+              <span class="keep-account-email" id="keep-account-email">Not connected</span>
+            </div>
             <span class="keep-status-text" id="keep-status-text">Connect Google Keep or import a Keep export JSON file.</span>
           </div>
         </div>
         <div class="header-actions">
-          <button class="secondary" id="connect-keep">Connect Google Keep</button>
-          <button class="secondary" id="disconnect-keep">Disconnect</button>
-          <button class="secondary" id="account-sync">Sync now</button>
-          <button class="secondary" id="open-keep">Open Google Keep</button>
-          <button class="secondary" id="sync-keep">Import Keep JSON</button>
-          <button class="secondary" id="import-notes">Import notes JSON</button>
-          <button class="secondary" id="clear-notes">Clear notes</button>
+          <button class="toolbar-icon-btn" id="account-sync" aria-label="Sync now" title="Sync now">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M21 12a9 9 0 0 1-14.6 7" />
+              <path d="M3 12A9 9 0 0 1 17.6 5" />
+              <path d="M17 1v5h5" />
+              <path d="M7 23v-5H2" />
+            </svg>
+          </button>
+          <div class="settings-menu-shell">
+            <button class="toolbar-icon-btn" id="settings-toggle" aria-label="Settings" title="Settings" aria-expanded="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
+                <path d="M4.9 15.1 3.7 17l2.2 3.8 2.2-.8a8 8 0 0 0 2 .9l.4 2.1h4.4l.4-2.1a8 8 0 0 0 2-.9l2.2.8L21.7 17l-1.2-1.9a8.8 8.8 0 0 0 0-2.2L21.7 11l-2.2-3.8-2.2.8a8 8 0 0 0-2-.9L14.9 5h-4.4l-.4 2.1a8 8 0 0 0-2 .9l-2.2-.8L3.7 11l1.2 1.9a8.8 8.8 0 0 0 0 2.2z" />
+              </svg>
+            </button>
+            <div class="settings-dropdown hidden" id="settings-menu">
+              <button class="settings-menu-item" id="connect-keep">Connect Google Keep</button>
+              <button class="settings-menu-item" id="disconnect-keep">Disconnect</button>
+              <button class="settings-menu-item" id="open-keep">Open Google Keep</button>
+              <button class="settings-menu-item" id="sync-keep">Import Keep JSON</button>
+              <button class="settings-menu-item" id="import-notes">Import notes JSON</button>
+            </div>
+          </div>
+          <button class="secondary" id="clear-notes">Clear</button>
           <button id="new-note">New note</button>
         </div>
       </header>
