@@ -1,0 +1,28 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  loadNotes: () => ipcRenderer.invoke('notes:load'),
+  getNote: (id) => ipcRenderer.invoke('notes:get-one', id),
+  clearNotes: () => ipcRenderer.invoke('notes:clear'),
+  createNote: (payload) => ipcRenderer.invoke('notes:create', payload),
+  updateNote: (note) => ipcRenderer.invoke('notes:update', note),
+  patchNote: (id, patch) => ipcRenderer.invoke('notes:patch', { id, patch }),
+  showNote: (id) => ipcRenderer.invoke('notes:show', id),
+  deleteNote: (id) => ipcRenderer.invoke('notes:delete', id),
+  importKeepNotes: () => ipcRenderer.invoke('notes:import'),
+  syncKeepNotes: () => ipcRenderer.invoke('notes:sync-keep'),
+  connectKeep: (payload) => ipcRenderer.invoke('keep:onboarding-preview', payload),
+  applyKeepOnboarding: (payload) => ipcRenderer.invoke('keep:onboarding-apply', payload),
+  disconnectKeep: () => ipcRenderer.invoke('keep:disconnect'),
+  getKeepStatus: () => ipcRenderer.invoke('keep:status'),
+  syncKeepNow: () => ipcRenderer.invoke('keep:sync-now'),
+  openKeep: () => ipcRenderer.invoke('notes:open-keep'),
+  moveWindowLive: (payload) => ipcRenderer.send('window:move-live', payload),
+  moveWindow: (payload) => ipcRenderer.invoke('window:move', payload),
+  setWindowBounds: (payload) => ipcRenderer.invoke('window:set-bounds', payload),
+  closeCurrentWindow: () => ipcRenderer.invoke('window:close-current'),
+  setWindowInteractive: (interactive) => ipcRenderer.invoke('window:set-interactive', interactive),
+  onNoteData: (callback) => ipcRenderer.on('note:data', (_event, note) => callback(note)),
+  onNotesChanged: (callback) => ipcRenderer.on('notes:changed', (_event, notes) => callback(notes)),
+  onKeepStatusChanged: (callback) => ipcRenderer.on('keep:status-changed', (_event, status) => callback(status))
+});

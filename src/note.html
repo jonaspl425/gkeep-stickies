@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sticky Note</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="note-window">
+    <div class="note-card" id="note-card">
+      <div class="note-toolbar">
+        <div class="note-toolbar-group">
+          <button class="icon-btn" id="pin-btn" aria-label="Lock note position" title="Lock note position" aria-pressed="false">&#128204;</button>
+          <button class="icon-btn color-picker-btn" id="color-btn" aria-label="Choose note color" title="Choose note color" aria-expanded="false">
+            <span class="current-color-swatch" id="current-color-swatch" aria-hidden="true"></span>
+          </button>
+        </div>
+        <button class="icon-btn" id="delete-btn" aria-label="Delete note" title="Delete note">&times;</button>
+      </div>
+      <div class="color-palette hidden" id="color-palette" role="listbox" aria-label="Note color"></div>
+      <input id="note-title" placeholder="Title" />
+      <div class="note-body-preview" id="note-body-preview" tabindex="0" role="button" aria-label="Edit note body"></div>
+      <textarea class="hidden" id="note-body" placeholder="Write something..."></textarea>
+      <div class="resize-handle" id="resize-handle"></div>
+    </div>
+
+    <script src="./noteFormatting.js"></script>
+    <script src="./noteRenderer.js"></script>
+  </body>
+</html>
