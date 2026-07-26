@@ -51,7 +51,7 @@ npm ls --depth=0
 Results:
 
 - JavaScript syntax checks passed.
-- `npm test` passed outside the filesystem sandbox: 15 tests, 15 passing.
+- `npm test` passed outside the filesystem sandbox: 21 tests, 21 passing.
 - Local bridge smoke test passed: Python 3.12.13 and `gkeepapi 0.17.1`.
 - `npm ls --depth=0` reports `electron@35.7.5`.
 - The in-sandbox `npm test` run failed with `spawn EPERM`, which appears to be a sandbox execution artifact.
@@ -268,7 +268,7 @@ Persistent desktop sticky notes with local storage and Google Keep export/import
 
 ## Residual Risks
 
-- Google Keep account sync is implemented as a manual MVP, not a fully automatic conflict-resolving sync engine.
+- Google Keep account sync includes automatic background push, but it is not yet a fully conflict-resolving sync engine.
 - ID-less Google Keep exports now have source hashes, but the conflict policy for edited local copies of imported notes is still basic.
 - Storage has corrupt-file recovery, temp-file writes, and core field sanitization, but no schema-versioned migration system yet.
 - The current test suite still does not cover most Electron IPC or renderer behavior.

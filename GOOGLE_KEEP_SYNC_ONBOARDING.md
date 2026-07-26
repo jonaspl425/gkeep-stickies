@@ -221,7 +221,7 @@ Technical effects:
 
 - Bridge may be launched for auth test.
 - Token may be held in memory during test.
-- Only after successful auth should credential be stored.
+- Credentials should be stored only after successful authentication.
 - Renderer must not receive token back from main.
 
 Failure states:

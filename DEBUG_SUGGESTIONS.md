@@ -11,7 +11,7 @@ Several findings in this historical debug pass have since been implemented or pa
 - Resize now uses `window:set-bounds` and persists width/height.
 - Text and appearance edits use `notes:patch` from renderer paths.
 - Clear-notes behavior now remains empty after reload.
-- Dashboard card clicks now use `notes:show` instead of mutating note content.
+- Dashboard card actions now separate editing from opening sticky windows instead of mutating note content on ordinary clicks.
 - Storage now recovers corrupt JSON by quarantining the bad file and writes through a temporary file before rename.
 - Storage now sanitizes persisted note records, clamps window bounds, caps text fields, and restricts colors to hex values.
 - Google Keep export notes without remote IDs now receive stable source hashes, making repeated imports idempotent for unchanged ID-less notes.
@@ -31,7 +31,7 @@ This document captures a technical debug pass over the local `sticky-notes-deskt
 - JSON-backed persistence in `src/notesStore.js`.
 - Google Keep import normalization in `src/keepSync.js`.
 
-The repository currently has no commits on `main`; first-party files are untracked, while `data/` and `node_modules/` are ignored by `.gitignore`.
+The repository now has committed first-party source files. Local runtime data, dependency folders, generated package outputs, and credential files are ignored by `.gitignore`.
 
 ## Verification Baseline
 
@@ -54,8 +54,8 @@ Results:
 - `npm test` passes outside the Codex filesystem sandbox:
 
 ```text
-tests 11
-pass 11
+tests 21
+pass 21
 fail 0
 ```
 

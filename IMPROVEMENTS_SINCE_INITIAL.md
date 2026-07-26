@@ -1,6 +1,6 @@
-# Improvements Since Initial Draft
+# Improvements Since the Initial Draft
 
-This document summarizes the major features, fixes, and breakthroughs added after the initial raw draft commit.
+This document summarizes the major features, fixes, and breakthroughs added since the initial raw draft commit.
 
 ## Packaging and Launching
 
@@ -8,7 +8,7 @@ This document summarizes the major features, fixes, and breakthroughs added afte
 - Built both installer and portable app outputs.
 - Added package metadata, including `author: jonaspl`.
 - Included local Python Google Keep bridge dependencies in packaged builds.
-- Added a local no-visible-terminal launcher: `launch-sticky-notes.vbs`.
+- Added a local launcher that starts without a visible terminal: `launch-sticky-notes.vbs`.
 - Added `npm run start:detached` for development launches without leaving a visible terminal window open.
 - Documented packaged and detached launch options in `README.md`.
 
@@ -54,7 +54,7 @@ This document summarizes the major features, fixes, and breakthroughs added afte
 - Added automatic background push after local edits.
 - Shortened the auto-sync debounce to make edits sync quickly without firing on every keystroke.
 - Added queueing so edits made during an in-flight sync are pushed afterward.
-- Manual `Sync now` now clears pending auto-sync work first to avoid duplicate pushes.
+- The manual `Sync now` action now clears pending auto-sync work first to avoid duplicate pushes.
 - Added safeguards so blank local notes are not uploaded to Google Keep.
 - Kept newer local dirty edits dirty when an older in-flight sync completes.
 - Moved remote delete/trash into a background flow so local deletion stays responsive.
