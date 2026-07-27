@@ -100,6 +100,26 @@ test('create note sanitizes unsafe fields', () => {
   assert.deepEqual(note.keepFields.labels, [{ id: 'label-1', name: 'Important' }]);
 });
 
+test('create note treats false-like strings as false booleans', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
+  const store = createNoteStore(path.join(dir, 'notes.json'));
+  const note = store.createNote({
+    positionLocked: 'false',
+    dashboardPinned: '0',
+    keepFields: {
+      pinned: 'false',
+      archived: '0',
+      trashed: 'false'
+    }
+  });
+
+  assert.equal(note.positionLocked, false);
+  assert.equal(note.dashboardPinned, false);
+  assert.equal(note.keepFields.pinned, false);
+  assert.equal(note.keepFields.archived, false);
+  assert.equal(note.keepFields.trashed, false);
+});
+
 test('save notes drops non-note values and sanitizes records', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const storagePath = path.join(dir, 'notes.json');

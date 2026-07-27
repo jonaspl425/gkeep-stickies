@@ -35,6 +35,29 @@ function sanitizeNumber(value, fallback, min = 0, max = MAX_WINDOW_VALUE) {
   return Math.min(max, Math.max(min, number));
 }
 
+function sanitizeBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) {
+      return true;
+    }
+
+    if (['0', 'false', 'no', 'n', 'off', ''].includes(normalized)) {
+      return false;
+    }
+  }
+
+  return fallback;
+}
+
 function sanitizeColor(value, fallback = DEFAULT_COLOR) {
   if (typeof value !== 'string') {
     return fallback;
@@ -109,9 +132,9 @@ function sanitizeKeepFields(value) {
   }
 
   const keepFields = {
-    pinned: Boolean(value.pinned),
-    archived: Boolean(value.archived),
-    trashed: Boolean(value.trashed)
+    pinned: sanitizeBoolean(value.pinned),
+    archived: sanitizeBoolean(value.archived),
+    trashed: sanitizeBoolean(value.trashed)
   };
 
   if (Array.isArray(value.labels)) {
@@ -139,11 +162,11 @@ function sanitizeNoteRecord(input = {}, options = {}) {
     width: sanitizeNumber(input.width, 240, MIN_WIDTH),
     height: sanitizeNumber(input.height, 220, MIN_HEIGHT),
     color: sanitizeColor(input.color),
-    positionLocked: Boolean(input.positionLocked),
-    dashboardPinned: Boolean(input.dashboardPinned),
+    positionLocked: sanitizeBoolean(input.positionLocked),
+    dashboardPinned: sanitizeBoolean(input.dashboardPinned),
     createdAt: sanitizeDate(input.createdAt, now),
     updatedAt: sanitizeDate(input.updatedAt, now),
-    importedFromKeep: Boolean(input.importedFromKeep)
+    importedFromKeep: sanitizeBoolean(input.importedFromKeep)
   };
 
   const keep = sanitizeKeepMetadata(input.keep);
@@ -195,6 +218,9 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
 
   function recoverCorruptStorage() {
     const corruptPath = createCorruptStoragePath();
+    const raw = fs.readFileSync(storagePath, 'utf8');
+    const backupPath = path.join(path.dirname(storagePath), `${path.basename(storagePath)}.backup.${randomUUID()}`);
+    fs.writeFileSync(backupPath, raw, 'utf8');
     fs.renameSync(storagePath, corruptPath);
     fs.writeFileSync(storagePath, '[]', 'utf8');
     return corruptPath;
@@ -327,8 +353,8 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
       width: input.width ?? 240,
       height: input.height ?? 220,
       color: input.color || DEFAULT_COLOR,
-      positionLocked: Boolean(input.positionLocked),
-      dashboardPinned: Boolean(input.dashboardPinned),
+      positionLocked: sanitizeBoolean(input.positionLocked),
+      dashboardPinned: sanitizeBoolean(input.dashboardPinned),
       createdAt: input.createdAt || now,
       updatedAt: now,
       importedFromKeep: Boolean(input.importedFromKeep),
