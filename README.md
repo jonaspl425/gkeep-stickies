@@ -2,6 +2,16 @@
 
 This is an early working draft of a desktop notes app with Google Keep sync experiments.
 
+Features: 
+Persistent sticky notes that do not disappear when other windows are typed 
+Ability to create and manipulate sticky notes directly from google keep with two-way sync (edit/delete). 
+
+Future ideas: 
+Syncing windows "sticky notes" app content
+Syncing mac "stickies" app content 
+Creating a mobile interface to edit and delete all of this. 
+Sharing notes with users across platforms. 
+
 ## Draft Status
 
 This repository is an initial working draft. Some functionality is unfinished or untested, especially account sync, note import/export, and desktop window behavior. Treat the code as a prototype that needs security review, manual QA, and product polish before real use.
