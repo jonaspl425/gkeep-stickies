@@ -1,4 +1,4 @@
-# Sticky Notes Repo Proofreading Review
+# Persistent Notes Repo Proofreading Review
 
 Generated: 2026-07-26
 
@@ -11,7 +11,7 @@ The changes from this review have been applied to the current draft app:
 - Google Keep UI copy now separates JSON export/import from account sync.
 - The unsupported `dialog.showInputBox` path has been removed from the active flow.
 - Keep merge logic no longer matches unrelated notes by missing remote IDs.
-- Dashboard card clicks now focus/open sticky notes through `notes:show` instead of mutating title/body.
+- Dashboard card clicks now focus/open floating notes through `notes:show` instead of mutating title/body.
 - Icon-only note buttons now have accessible labels and titles.
 - `notesStore` now quarantines corrupt JSON and writes through a temporary file before rename.
 - `notesStore` now sanitizes persisted note records, clamps window bounds, caps text fields, and restricts note colors to hex values.
@@ -136,7 +136,7 @@ Clicking a dashboard card calls `patchNote` with defaulted title/body values. Th
 Recommended change:
 
 - Add a separate focus/open IPC such as `notes:show` or `notes:focus`.
-- Use card click only to focus or open the sticky window.
+- Use card click only to focus or open the floating note window.
 - Leave note content and `updatedAt` unchanged unless the user edits the note.
 
 ### 5. Update stale debug documentation
@@ -151,7 +151,7 @@ Issue:
 
 The document still lists some findings as open even though the code now appears to include partial or complete fixes, including:
 
-- Pull-based sticky note hydration.
+- Pull-based floating note hydration.
 - `notes:get-one`.
 - `window:set-bounds`.
 - `notes:patch`.
@@ -256,7 +256,7 @@ Files:
 Original wording overemphasized Google Keep. The current local-first description is:
 
 ```text
-Persistent desktop sticky notes with local storage and Google Keep export/import.
+Persistent desktop notes with local storage and Google Keep export/import.
 ```
 
 ## Suggested Fix Order

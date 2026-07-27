@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 test('get-one returns a note by id and null for missing ids', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-'));
   const storagePath = path.join(dir, 'notes.json');
   const store = createNoteStore(storagePath);
 

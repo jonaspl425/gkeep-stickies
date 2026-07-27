@@ -8,16 +8,16 @@ Related document: `GOOGLE_KEEP_SYNC_ONBOARDING.md`
 
 ## 1. Objective
 
-Build a two-way sync layer between this Electron sticky notes app and a Google Keep account using `gkeepapi`, an unofficial Python client for Google Keep's private mobile API.
+Build a two-way sync layer between this Electron desktop notes app and a Google Keep account using `gkeepapi`, an unofficial Python client for Google Keep's private mobile API.
 
 The integration should support, where `gkeepapi` exposes stable behavior:
 
-- Create Google Keep notes from local sticky notes.
-- Import Google Keep notes into local sticky note windows.
+- Create Google Keep notes from local notes.
+- Import Google Keep notes into local floating note windows.
 - Edit note title and body in either direction.
 - Delete, trash, and untrash notes.
 - Sync pin, archive, color, labels, and list note content.
-- Preserve local-only UI state such as sticky window position, size, and local selection state.
+- Preserve local-only UI state such as floating window position, size, and local selection state.
 - Detect conflicts rather than silently overwriting data.
 - Fail closed and preserve local data when Google Keep, `gkeepapi`, auth, or network behavior changes.
 - Gate first-time connection behind a backup-backed onboarding flow with a read-only first-sync preview.
@@ -85,7 +85,7 @@ Current app shape:
 
 - Electron main process: `src/main.js`
 - Renderer UI: `src/renderer.js`
-- Sticky window renderer: `src/noteRenderer.js`
+- Floating note renderer: `src/noteRenderer.js`
 - Local persistence: `src/notesStore.js`
 - Existing import-style Keep code: `src/keepSync.js`
 - Data file: `data/notes.json`
@@ -93,7 +93,7 @@ Current app shape:
 Current behavior:
 
 - Notes are local JSON records.
-- A sticky note can be created, patched, deleted, moved, and resized.
+- A floating note can be created, patched, deleted, moved, and resized.
 - There is a JSON import-style Keep flow, but no durable Google Keep identity, no two-way sync, no auth, no remote conflict detection, and no remote mutation path.
 
 ## 4. Non-Negotiable Safety Rules
@@ -605,7 +605,7 @@ Algorithm:
 8. Apply reconciliation rules.
 9. Save local notes atomically.
 10. Save bridge state atomically.
-11. Refresh sticky windows and main window.
+11. Refresh floating note windows and main window.
 12. Release lock.
 
 ### 10.3 Push Local Changes
@@ -633,7 +633,7 @@ Algorithm:
 
 ### 10.4 Live Editing Debounce
 
-Current sticky windows patch local notes on every input event. For Keep sync:
+Current floating note windows patch local notes on every input event. For Keep sync:
 
 - Keep immediate local save.
 - Do not call Google Keep on every keystroke.
@@ -680,7 +680,7 @@ UI actions:
 Implementation behavior:
 
 - Keep local: overwrite remote through bridge, update base hash.
-- Keep remote: overwrite local, update sticky window.
+- Keep remote: overwrite local, update floating note window.
 - Duplicate both: create a new local note and a new remote note as needed.
 - Manual merge: create an edit screen with local and remote values; push merged result.
 
@@ -1354,9 +1354,9 @@ Test cases:
 - Pull empty account.
 - Create local text note, verify in Keep web.
 - Edit local note, verify in Keep web.
-- Edit Keep web note, verify local sticky note.
+- Edit Keep web note, verify local note.
 - Delete local note, verify Keep trash behavior.
-- Create Keep web note, verify local sticky note appears.
+- Create Keep web note, verify local note appears.
 - Pin/archive/color changes.
 - Labels.
 - Lists.
@@ -1426,7 +1426,7 @@ Minimum acceptable implementation:
 - User can connect Keep with email/master token through onboarding.
 - Onboarding requires risk acceptance, account confirmation, local backup, read-only scan, first-sync preview, and explicit apply before first remote mutation.
 - Local notes are backed up before first remote mutation, and backup failure blocks first sync.
-- Remote text notes pull into local sticky notes.
+- Remote text notes pull into local notes.
 - Local text notes push to Google Keep.
 - Edits sync both ways.
 - Deletes default to trash.
@@ -1451,7 +1451,7 @@ Advanced acceptance:
 1. Use `keytar` or Electron `safeStorage` for token storage?
 2. Should list-note support ship in the first implementation or the second?
 3. Should hard delete ever be exposed, or only trash?
-4. Should remote archived notes appear as sticky windows by default?
+4. Should remote archived notes appear as floating note windows by default?
 5. Should Google Keep labels map to local filters/tags in the UI?
 6. Should conflict resolution be per note or batch-capable?
 7. Should bridge state live in project `data/` during development but app `userData` in production?

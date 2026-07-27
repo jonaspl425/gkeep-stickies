@@ -8,20 +8,20 @@ This document summarizes the major features, fixes, and breakthroughs added sinc
 - Built both installer and portable app outputs.
 - Added package metadata, including `author: jonaspl`.
 - Included local Python Google Keep bridge dependencies in packaged builds.
-- Added a local launcher that starts without a visible terminal: `launch-sticky-notes.vbs`.
+- Added a local launcher that starts without a visible terminal: `launch-persistent-notes.vbs`.
 - Added `npm run start:detached` for development launches without leaving a visible terminal window open.
 - Documented packaged and detached launch options in `README.md`.
 
 ## Dashboard-First App Lifecycle
 
 - Changed startup behavior so the app opens to the dashboard only.
-- Stopped automatically reopening every saved sticky note window on launch.
-- Made closing the dashboard hide all open sticky notes instead of leaving them floating.
+- Stopped automatically reopening every saved floating note window on launch.
+- Made closing the dashboard hide all open floating notes instead of leaving them floating.
 - Kept notes available from the dashboard list so they can be opened intentionally.
-- Changed sticky-note `x` behavior from delete to hide.
+- Changed floating-note `x` behavior from delete to hide.
 - Made hide use a faster fire-and-forget IPC path.
 
-## Sticky Note Window Behavior
+## Floating Note Window Behavior
 
 - Replaced laggy renderer-driven mouse tracking with native Electron window dragging.
 - Persisted note position from the main process after movement settles.
@@ -34,7 +34,7 @@ This document summarizes the major features, fixes, and breakthroughs added sinc
 
 - Added a draggable reorder handle to dashboard note cards.
 - Persisted manual note order in the note store.
-- Made note-card `x` hide the sticky note instead of deleting it.
+- Made note-card `x` hide the floating note instead of deleting it.
 - Added support for blank note titles without forcing placeholder text into saved notes.
 - Added a cleaner toolbar/settings-menu style in the dashboard.
 
@@ -65,7 +65,7 @@ This document summarizes the major features, fixes, and breakthroughs added sinc
 - Sorted unchecked checklist items above completed items.
 - Preserved common Keep/list ordering fields when available.
 - Rendered completed checklist items at the bottom behind a completed-items summary.
-- Preserved the same checklist ordering in sticky note previews and dashboard cards.
+- Preserved the same checklist ordering in floating note previews and dashboard cards.
 - Added bridge serialization for list item order metadata when exposed by `gkeepapi`.
 
 ## Storage and Safety

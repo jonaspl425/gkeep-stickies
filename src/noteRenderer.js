@@ -15,6 +15,7 @@ let currentNote = null;
 let resizing = false;
 let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
 let windowDrag = null;
+let checklistDragIndex = null;
 let suppressPreviewClickUntil = 0;
 
 function isBodyEditing() {
@@ -24,6 +25,65 @@ function isBodyEditing() {
 function renderBodyPreview() {
   const body = isBodyEditing() ? bodyInput.value : currentNote?.body || '';
   bodyPreview.innerHTML = formatter.renderNoteBodyHtml(body);
+}
+
+function togglePreviewChecklistItem(event) {
+  const checkbox = event.target.closest('.checklist-box[data-checklist-index]');
+  if (!checkbox || !currentNote) {
+    return false;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  const index = Number.parseInt(checkbox.dataset.checklistIndex, 10);
+  const nextBody = formatter.toggleChecklistItem(currentNote.body || '', index);
+  if (nextBody === null) {
+    return true;
+  }
+
+  currentNote = { ...currentNote, body: nextBody };
+  bodyInput.value = nextBody;
+  renderBodyPreview();
+  window.electronAPI.patchNote(currentNote.id, { body: nextBody });
+  return true;
+}
+
+function getChecklistDragIndex(target) {
+  const handle = target.closest?.('.checklist-drag-handle[data-checklist-index]');
+  if (!handle) {
+    return null;
+  }
+
+  const index = Number.parseInt(handle.dataset.checklistIndex, 10);
+  return Number.isInteger(index) ? index : null;
+}
+
+function getChecklistDropIndex(target) {
+  const item = target.closest?.('.checklist-item');
+  const handle = item?.querySelector?.('[data-checklist-index]');
+  if (!handle) {
+    return null;
+  }
+
+  const index = Number.parseInt(handle.dataset.checklistIndex, 10);
+  return Number.isInteger(index) ? index : null;
+}
+
+function reorderPreviewChecklistItem(fromIndex, toIndex) {
+  if (!currentNote) {
+    return false;
+  }
+
+  const nextBody = formatter.reorderChecklistItem(currentNote.body || '', fromIndex, toIndex);
+  if (nextBody === null) {
+    return false;
+  }
+
+  currentNote = { ...currentNote, body: nextBody };
+  bodyInput.value = nextBody;
+  renderBodyPreview();
+  window.electronAPI.patchNote(currentNote.id, { body: nextBody });
+  return true;
 }
 
 function updateLockState() {
@@ -133,7 +193,8 @@ function startWindowDrag(event) {
     startScreenY: event.screenY,
     startX: position.x,
     startY: position.y,
-    moved: false
+    moved: false,
+    liveTracking: false
   };
 }
 
@@ -151,6 +212,16 @@ function updateWindowDrag(event) {
   windowDrag.moved = true;
   const position = getDraggedWindowPosition(event);
   currentNote = { ...currentNote, ...position };
+  if (!windowDrag.liveTracking) {
+    windowDrag.liveTracking = true;
+    window.electronAPI.startWindowDragLive({
+      id: currentNote.id,
+      startScreenX: windowDrag.startScreenX,
+      startScreenY: windowDrag.startScreenY,
+      startX: windowDrag.startX,
+      startY: windowDrag.startY
+    });
+  }
   window.electronAPI.moveWindowLive({ id: currentNote.id, ...position });
   event.preventDefault();
 }
@@ -162,6 +233,7 @@ async function finishWindowDrag(event) {
 
   const drag = windowDrag;
   windowDrag = null;
+  window.electronAPI.stopWindowDragLive();
   if (!drag.moved || !currentNote) {
     return;
   }
@@ -278,6 +350,16 @@ bodyPreview.addEventListener('click', (event) => {
     return;
   }
 
+  if (event.target.closest('.checklist-drag-handle')) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+
+  if (togglePreviewChecklistItem(event)) {
+    return;
+  }
+
   if (event.target.closest('summary')) {
     return;
   }
@@ -285,7 +367,48 @@ bodyPreview.addEventListener('click', (event) => {
   showBodyEditor();
 });
 
+bodyPreview.addEventListener('dragstart', (event) => {
+  const index = getChecklistDragIndex(event.target);
+  if (index === null) {
+    return;
+  }
+
+  checklistDragIndex = index;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', String(index));
+  event.stopPropagation();
+});
+
+bodyPreview.addEventListener('dragover', (event) => {
+  if (checklistDragIndex === null || getChecklistDropIndex(event.target) === null) {
+    return;
+  }
+
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+});
+
+bodyPreview.addEventListener('drop', (event) => {
+  const toIndex = getChecklistDropIndex(event.target);
+  if (checklistDragIndex === null || toIndex === null) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  reorderPreviewChecklistItem(checklistDragIndex, toIndex);
+  checklistDragIndex = null;
+});
+
+bodyPreview.addEventListener('dragend', () => {
+  checklistDragIndex = null;
+});
+
 bodyPreview.addEventListener('keydown', (event) => {
+  if (event.target.closest('.checklist-box, .checklist-drag-handle')) {
+    return;
+  }
+
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
     showBodyEditor();

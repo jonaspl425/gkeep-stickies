@@ -8,7 +8,7 @@ const { createKeepBridgeManager } = require('./keepBridgeManager');
 
 const projectRoot = path.join(__dirname, '..');
 let mainWindow;
-const stickyWindows = new Map();
+const floatingNoteWindows = new Map();
 let noteStore;
 let credentialStore;
 let keepBridge;
@@ -22,11 +22,13 @@ let keepSyncState = {
 };
 const KEEP_AUTO_PUSH_DEBOUNCE_MS = 750;
 const WINDOW_MOVE_PERSIST_DEBOUNCE_MS = 160;
+const WINDOW_LIVE_DRAG_INTERVAL_MS = 8;
 const NOTE_BOTTOM_HIDE_THRESHOLD_PX = 72;
 const NOTE_EDGE_MARGIN_PX = 16;
 let keepAutoPushTimer = null;
 let keepAutoPushInFlight = null;
 let keepAutoPushQueued = false;
+const liveWindowDrags = new Map();
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -38,8 +40,9 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1000,
     height: 760,
-    title: 'Sticky Notes',
+    title: 'Persistent Notes',
     show: false,
+    autoHideMenuBar: true,
     backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -47,6 +50,8 @@ function createMainWindow() {
       nodeIntegration: false
     }
   });
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.removeMenu();
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   mainWindow.once('ready-to-show', () => {
@@ -59,7 +64,7 @@ function createMainWindow() {
     showMainWindow();
   }, 1200);
   mainWindow.on('closed', () => {
-    hideAllStickyWindows();
+    hideAllFloatingNoteWindows();
     mainWindow = null;
   });
 }
@@ -82,19 +87,19 @@ function showMainWindow() {
   }, 900);
 }
 
-function closeStickyWindow(id) {
-  const window = stickyWindows.get(id);
-  stickyWindows.delete(id);
+function closeFloatingNoteWindow(id) {
+  const window = floatingNoteWindows.get(id);
+  floatingNoteWindows.delete(id);
   if (window && !window.isDestroyed()) {
     window.removeAllListeners('closed');
     window.destroy();
   }
 }
 
-function hideStickyWindow(id) {
-  const window = stickyWindows.get(id);
+function hideFloatingNoteWindow(id) {
+  const window = floatingNoteWindows.get(id);
   if (!window || window.isDestroyed()) {
-    stickyWindows.delete(id);
+    floatingNoteWindows.delete(id);
     return false;
   }
 
@@ -102,13 +107,32 @@ function hideStickyWindow(id) {
   return true;
 }
 
-function hideAllStickyWindows() {
-  Array.from(stickyWindows.keys()).forEach((id) => {
-    hideStickyWindow(id);
+function hideAllFloatingNoteWindows() {
+  Array.from(floatingNoteWindows.keys()).forEach((id) => {
+    hideFloatingNoteWindow(id);
   });
 }
 
-function persistStickyWindowPosition(id, window) {
+function stopLiveWindowDrag(webContentsId) {
+  const session = liveWindowDrags.get(webContentsId);
+  if (!session) {
+    return false;
+  }
+
+  clearInterval(session.timer);
+  liveWindowDrags.delete(webContentsId);
+  return true;
+}
+
+function stopLiveWindowDragForWindow(window) {
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  stopLiveWindowDrag(window.webContents.id);
+}
+
+function persistFloatingNoteWindowPosition(id, window) {
   if (!noteStore || !window || window.isDestroyed()) {
     return;
   }
@@ -152,7 +176,7 @@ function shouldHideWindowBelowThreshold(window) {
   return noteCenterY >= hideLineY;
 }
 
-function hideStickyWindowIfBelowThreshold(id, window) {
+function hideFloatingNoteWindowIfBelowThreshold(id, window) {
   if (!noteStore || !window || window.isDestroyed() || !window.isVisible()) {
     return false;
   }
@@ -172,13 +196,13 @@ function hideStickyWindowIfBelowThreshold(id, window) {
   window.setBounds(safeBounds);
   refreshMainWindow(noteStore.loadNotes());
   window.webContents.send('note:data', updated);
-  hideStickyWindow(id);
+  hideFloatingNoteWindow(id);
   return true;
 }
 
-function destroyAllStickyWindows() {
-  Array.from(stickyWindows.entries()).forEach(([id, window]) => {
-    stickyWindows.delete(id);
+function destroyAllFloatingNoteWindows() {
+  Array.from(floatingNoteWindows.entries()).forEach(([id, window]) => {
+    floatingNoteWindows.delete(id);
     if (window && !window.isDestroyed()) {
       window.removeAllListeners('closed');
       window.destroy();
@@ -192,11 +216,11 @@ function destroyAllStickyWindows() {
   });
 }
 
-function ensureStickyWindow(note) {
-  const existing = stickyWindows.get(note.id);
+function ensureFloatingNoteWindow(note) {
+  const existing = floatingNoteWindows.get(note.id);
   if (existing) {
     if (existing.isDestroyed()) {
-      stickyWindows.delete(note.id);
+      floatingNoteWindows.delete(note.id);
     } else {
       existing.webContents.send('note:data', note);
       return existing;
@@ -239,23 +263,24 @@ function ensureStickyWindow(note) {
     }
     movePersistTimer = setTimeout(() => {
       movePersistTimer = null;
-      if (hideStickyWindowIfBelowThreshold(note.id, window)) {
+      if (hideFloatingNoteWindowIfBelowThreshold(note.id, window)) {
         return;
       }
-      persistStickyWindowPosition(note.id, window);
+      persistFloatingNoteWindowPosition(note.id, window);
     }, WINDOW_MOVE_PERSIST_DEBOUNCE_MS);
   });
   window.on('closed', () => {
+    stopLiveWindowDragForWindow(window);
     if (movePersistTimer) {
       clearTimeout(movePersistTimer);
       movePersistTimer = null;
     }
-    if (stickyWindows.get(note.id) === window) {
-      stickyWindows.delete(note.id);
+    if (floatingNoteWindows.get(note.id) === window) {
+      floatingNoteWindows.delete(note.id);
     }
   });
 
-  stickyWindows.set(note.id, window);
+  floatingNoteWindows.set(note.id, window);
   return window;
 }
 
@@ -273,7 +298,7 @@ function broadcastKeepStatus() {
 }
 
 function syncNoteWindow(note) {
-  const window = ensureStickyWindow(note);
+  const window = ensureFloatingNoteWindow(note);
   window.webContents.send('note:data', note);
 }
 
@@ -284,7 +309,7 @@ function createPackagedNoteStore() {
 }
 
 function focusNoteWindow(note) {
-  const window = ensureStickyWindow(note);
+  const window = ensureFloatingNoteWindow(note);
   if (!window.isDestroyed()) {
     window.show();
     window.focus();
@@ -293,18 +318,18 @@ function focusNoteWindow(note) {
   return note;
 }
 
-function closeMissingStickyWindows(notes) {
+function closeMissingFloatingNoteWindows(notes) {
   const liveIds = new Set(notes.map((note) => note.id));
-  Array.from(stickyWindows.entries()).forEach(([id, window]) => {
+  Array.from(floatingNoteWindows.entries()).forEach(([id, window]) => {
     if (!liveIds.has(id) && window && !window.isDestroyed()) {
-      closeStickyWindow(id);
+      closeFloatingNoteWindow(id);
     }
   });
 }
 
-function refreshOpenStickyWindows(notes) {
+function refreshOpenFloatingNoteWindows(notes) {
   notes.forEach((note) => {
-    const window = stickyWindows.get(note.id);
+    const window = floatingNoteWindows.get(note.id);
     if (window && !window.isDestroyed()) {
       window.webContents.send('note:data', note);
     }
@@ -313,7 +338,8 @@ function refreshOpenStickyWindows(notes) {
 
 function getCredentialStore() {
   if (!credentialStore) {
-    credentialStore = createCredentialStore(app, safeStorage);
+    const legacyCredentialPath = path.join(app.getPath('appData'), 'sticky-notes-desktop', 'keep-credentials.json');
+    credentialStore = createCredentialStore(app, safeStorage, { migrateFrom: legacyCredentialPath });
   }
   return credentialStore;
 }
@@ -427,7 +453,7 @@ async function mergeRemoteKeepNotes({ email, settings }) {
       getAllNotes: async () => remoteNotes
     }
   });
-  closeMissingStickyWindows(noteList);
+  closeMissingFloatingNoteWindows(noteList);
   refreshMainWindow(noteList);
   return noteList;
 }
@@ -559,7 +585,7 @@ function runKeepAutoPush() {
       const pushResult = await pushLocalChanges({ email, settings });
 
       const notes = noteStore.loadNotes({ seedDefaults: false });
-      refreshOpenStickyWindows(notes);
+      refreshOpenFloatingNoteWindows(notes);
       refreshMainWindow(notes);
       const status = pushResult.skippedUploadDisabled > 0 && pushResult.created === 0 && pushResult.updated === 0
         ? 'Local note saved. Enable local uploads to create it in Google Keep.'
@@ -688,7 +714,7 @@ app.on('second-instance', () => {
 });
 
 app.on('before-quit', () => {
-  destroyAllStickyWindows();
+  destroyAllFloatingNoteWindows();
 });
 
 app.on('window-all-closed', () => {
@@ -711,7 +737,7 @@ ipcMain.handle('notes:create', (_event, payload = {}) => {
   const note = noteStore.createNote(payload);
   syncNoteWindow(note);
   const notes = noteStore.loadNotes();
-  closeMissingStickyWindows(notes);
+  closeMissingFloatingNoteWindows(notes);
   refreshMainWindow(notes);
   if (hasSyncableLocalContent(note)) {
     scheduleKeepAutoPush();
@@ -760,14 +786,26 @@ ipcMain.handle('notes:reorder', (_event, orderedIds = []) => {
   return notes;
 });
 
-ipcMain.handle('notes:show', (_event, id) => {
+ipcMain.handle('notes:show', (_event, payload = {}) => {
+  const request = typeof payload === 'string' ? { id: payload } : payload;
+  const id = request?.id;
   if (typeof id !== 'string' || id.length === 0) {
     return null;
   }
 
-  const note = noteStore.loadNotes({ seedDefaults: false }).find((item) => item.id === id);
+  let note = noteStore.loadNotes({ seedDefaults: false }).find((item) => item.id === id);
   if (!note) {
     return null;
+  }
+
+  if (!note.positionLocked) {
+    const patch = {};
+    if (Number.isFinite(request.x)) patch.x = Math.max(0, request.x);
+    if (Number.isFinite(request.y)) patch.y = Math.max(0, request.y);
+    if (Object.keys(patch).length > 0) {
+      note = noteStore.patchNote(id, patch);
+      refreshMainWindow(noteStore.loadNotes());
+    }
   }
 
   return focusNoteWindow(note);
@@ -778,7 +816,7 @@ ipcMain.handle('notes:hide', (_event, id) => {
     return false;
   }
 
-  return hideStickyWindow(id);
+  return hideFloatingNoteWindow(id);
 });
 
 ipcMain.handle('notes:delete', async (_event, id) => {
@@ -788,19 +826,19 @@ ipcMain.handle('notes:delete', async (_event, id) => {
 
   const note = noteStore.loadNotes({ seedDefaults: false }).find((item) => item.id === id);
   noteStore.deleteNote(id);
-  closeStickyWindow(id);
+  closeFloatingNoteWindow(id);
   const notes = noteStore.loadNotes();
-  closeMissingStickyWindows(notes);
+  closeMissingFloatingNoteWindows(notes);
   refreshMainWindow(notes);
   trashRemoteKeepNoteInBackground(note);
   return true;
 });
 
 ipcMain.handle('notes:clear', () => {
-  noteStore.resetNotes();
-  destroyAllStickyWindows();
-  refreshMainWindow([]);
-  return true;
+  hideAllFloatingNoteWindows();
+  const notes = noteStore.loadNotes({ seedDefaults: false });
+  refreshMainWindow(notes);
+  return notes;
 });
 
 ipcMain.handle('window:close-current', (_event) => {
@@ -841,7 +879,7 @@ ipcMain.handle('notes:import', async () => {
   });
 
   const notes = noteStore.loadNotes();
-  closeMissingStickyWindows(notes);
+  closeMissingFloatingNoteWindows(notes);
   refreshMainWindow(notes);
   scheduleKeepAutoPush();
   return notes;
@@ -865,11 +903,11 @@ async function syncKeepFromSelection() {
   const notes = syncKeepNotes(noteStore, { keepApi: { getAllNotes: async () => importedNotes } });
   const noteList = await notes;
   noteList.forEach((note) => syncNoteWindow(note));
-  closeMissingStickyWindows(noteList);
+  closeMissingFloatingNoteWindows(noteList);
   refreshMainWindow(noteList);
   keepSyncState = {
     ...keepSyncState,
-    status: 'Imported selected Keep export',
+    status: 'Imported the selected Keep export',
     lastSyncedAt: new Date().toISOString(),
     error: null
   };
@@ -923,10 +961,10 @@ ipcMain.handle('keep:onboarding-preview', async (_event, payload = {}) => {
 
 ipcMain.handle('keep:onboarding-apply', async (_event, payload = {}) => {
   if (!pendingOnboarding) {
-    throw new Error('Create a Google Keep sync preview before applying onboarding.');
+    throw new Error('Create a Google Keep sync preview before applying the first sync.');
   }
   if (payload.previewHash !== pendingOnboarding.previewHash) {
-    throw new Error('The first sync preview is stale. Create a new preview before applying.');
+    throw new Error('The first sync preview is stale. Create a new preview before applying it.');
   }
 
   const { email, masterToken, settings } = pendingOnboarding;
@@ -1010,6 +1048,49 @@ ipcMain.on('window:move-live', (_event, payload = {}) => {
   if (x !== undefined && y !== undefined) {
     window.setPosition(x, y);
   }
+});
+
+ipcMain.on('window:drag-live-start', (_event, payload = {}) => {
+  const window = BrowserWindow.fromWebContents(_event.sender);
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  const storedNote = payload?.id
+    ? noteStore.loadNotes({ seedDefaults: false }).find((note) => note.id === payload.id)
+    : null;
+  if (storedNote?.positionLocked) {
+    return;
+  }
+
+  const startScreenX = Number.isFinite(payload.startScreenX) ? payload.startScreenX : undefined;
+  const startScreenY = Number.isFinite(payload.startScreenY) ? payload.startScreenY : undefined;
+  const startX = Number.isFinite(payload.startX) ? payload.startX : undefined;
+  const startY = Number.isFinite(payload.startY) ? payload.startY : undefined;
+  if (startScreenX === undefined || startScreenY === undefined || startX === undefined || startY === undefined) {
+    return;
+  }
+
+  const webContentsId = _event.sender.id;
+  stopLiveWindowDrag(webContentsId);
+  const timer = setInterval(() => {
+    if (window.isDestroyed()) {
+      stopLiveWindowDrag(webContentsId);
+      return;
+    }
+
+    const cursor = screen.getCursorScreenPoint();
+    window.setPosition(
+      Math.max(0, Math.round(startX + cursor.x - startScreenX)),
+      Math.max(0, Math.round(startY + cursor.y - startScreenY))
+    );
+  }, WINDOW_LIVE_DRAG_INTERVAL_MS);
+
+  liveWindowDrags.set(webContentsId, { timer });
+});
+
+ipcMain.on('window:drag-live-stop', (_event) => {
+  stopLiveWindowDrag(_event.sender.id);
 });
 
 ipcMain.handle('window:move', (_event, payload = {}) => {

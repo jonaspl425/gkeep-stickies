@@ -105,7 +105,7 @@ Required UI:
 - Body copy:
 
 ```text
-Sticky Notes can sync with Google Keep using an unofficial Google Keep client.
+Persistent Notes can sync with Google Keep using an unofficial Google Keep client.
 
 This is not a Google-supported integration. It may stop working if Google changes Keep. The app will create a local backup before making any remote changes, and you will preview the first sync before it runs.
 ```
@@ -144,8 +144,8 @@ Required options:
 
 ```text
 Sync direction
-[x] Pull Google Keep notes into Sticky Notes
-[x] Upload local Sticky Notes to Google Keep
+[x] Pull Google Keep notes into Persistent Notes
+[x] Upload local notes from Persistent Notes to Google Keep
 
 Deletion behavior
 (*) Move remote notes to trash when deleted locally
@@ -154,7 +154,7 @@ Deletion behavior
 
 Conflict behavior
 (*) Ask me before overwriting either side
-( ) Prefer Sticky Notes
+( ) Prefer Persistent Notes
 ( ) Prefer Google Keep
 
 Remote visibility
@@ -245,7 +245,7 @@ Required UI:
 Connected account
 user@example.com
 
-Only continue if this is the Google Keep account you want to sync with these desktop sticky notes.
+Only continue if this is the Google Keep account you want to sync with these desktop notes.
 ```
 
 Required confirmation:
@@ -276,7 +276,7 @@ Required UI:
 ```text
 Creating backup
 
-Before the first sync changes Google Keep, Sticky Notes will back up your local notes.
+Before the first sync changes Google Keep, Persistent Notes will back up your local notes.
 ```
 
 Backup path format:
@@ -321,7 +321,7 @@ Required UI:
 ```text
 Scanning Google Keep
 
-Sticky Notes is reading your Keep notes to prepare a first-sync preview. No Google Keep notes are being changed yet.
+Persistent Notes is reading your Keep notes to prepare a first-sync preview. No Google Keep notes are being changed yet.
 ```
 
 Technical effects:
@@ -348,8 +348,8 @@ Required summary:
 
 ```text
 Google Keep notes found: 42
-Local sticky notes found: 5
-New sticky notes to create from Keep: 42
+Local notes found: 5
+New local notes to create from Keep: 42
 Local notes to upload to Keep: 5
 Likely duplicates: 2
 Conflicts: 0
@@ -358,7 +358,7 @@ Remote notes to trash/delete: 0
 
 Required sections:
 
-- `Will create local sticky notes`
+- `Will create local notes`
 - `Will upload local notes to Google Keep`
 - `Possible duplicates`
 - `Needs review`
@@ -367,7 +367,7 @@ Required sections:
 Preview row fields:
 
 - Note title.
-- Source: Google Keep or Sticky Notes.
+- Source: Google Keep or Persistent Notes.
 - Action: create local, create remote, link, skip, conflict.
 - Last edited time if known.
 - Reason.
@@ -414,7 +414,7 @@ Progress states:
 - Uploading local notes.
 - Linking notes.
 - Saving sync state.
-- Refreshing sticky windows.
+- Refreshing floating note windows.
 
 Technical effects:
 
@@ -642,7 +642,7 @@ Technical behavior:
 User message:
 
 ```text
-Sticky Notes could not create a backup, so first sync is blocked.
+Persistent Notes could not create a backup, so first sync is blocked.
 Fix the storage issue or choose local-only mode.
 ```
 
@@ -661,7 +661,7 @@ Technical behavior:
 User message:
 
 ```text
-Sticky Notes could not read Google Keep right now.
+Persistent Notes could not read Google Keep right now.
 No Google Keep notes were changed.
 ```
 
@@ -682,7 +682,7 @@ User message:
 
 ```text
 First sync stopped before it fully completed.
-Local notes are still saved. Sticky Notes will scan Google Keep before retrying so it does not create duplicates blindly.
+Local notes are still saved. Persistent Notes will scan Google Keep before retrying so it does not create duplicates blindly.
 ```
 
 Actions:

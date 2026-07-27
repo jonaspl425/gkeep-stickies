@@ -1,4 +1,4 @@
-# Sticky Notes Debug Suggestions
+# Persistent Notes Debug Suggestions
 
 Generated: 2026-07-26
 
@@ -11,7 +11,7 @@ Several findings in this historical debug pass have since been implemented or pa
 - Resize now uses `window:set-bounds` and persists width/height.
 - Text and appearance edits use `notes:patch` from renderer paths.
 - Clear-notes behavior now remains empty after reload.
-- Dashboard card actions now separate editing from opening sticky windows instead of mutating note content on ordinary clicks.
+- Dashboard card actions now separate editing from opening floating notes instead of mutating note content on ordinary clicks.
 - Storage now recovers corrupt JSON by quarantining the bad file and writes through a temporary file before rename.
 - Storage now sanitizes persisted note records, clamps window bounds, caps text fields, and restricts colors to hex values.
 - Google Keep export notes without remote IDs now receive stable source hashes, making repeated imports idempotent for unchanged ID-less notes.
@@ -22,12 +22,12 @@ Remaining work includes broader Electron-level IPC tests, richer Keep export fix
 
 ## Scope
 
-This document captures a technical debug pass over the local `sticky-notes-desktop` repository. The project is a small Electron application with:
+This document captures a technical debug pass over the local `persistent-notes-desktop` repository. The project is a small Electron application with:
 
 - Main process orchestration in `src/main.js`.
 - A secure preload bridge in `src/preload.js`.
 - Main-window renderer behavior in `src/renderer.js`.
-- Sticky-note renderer behavior in `src/noteRenderer.js`.
+- Floating-note renderer behavior in `src/noteRenderer.js`.
 - JSON-backed persistence in `src/notesStore.js`.
 - Google Keep import normalization in `src/keepSync.js`.
 
@@ -65,26 +65,26 @@ The initial in-sandbox `npm test` failed with `spawn EPERM` from Node's test run
 
 ### Main Process
 
-`src/main.js` owns the persistent `noteStore`, `mainWindow`, and a `Map<string, BrowserWindow>` called `stickyWindows`.
+`src/main.js` owns the persistent `noteStore`, `mainWindow`, and a `Map<string, BrowserWindow>` called `floatingNoteWindows`.
 
 Key contracts:
 
 - `notes:load` returns `noteStore.loadNotes()`.
-- `notes:create` persists a new note, opens or updates its sticky window, and broadcasts `notes:changed`.
+- `notes:create` persists a new note, opens or updates its floating window, and broadcasts `notes:changed`.
 - `notes:update` accepts a renderer-provided note object and merges it into the stored note.
-- `notes:delete` removes a stored note and closes the associated sticky window.
-- `notes:clear` resets the store and closes all sticky windows.
+- `notes:delete` removes a stored note and closes the associated floating window.
+- `notes:clear` resets the store and closes all floating windows.
 - `notes:import` reads a selected JSON file and creates one local note per imported item.
 - `notes:sync-keep` reads a selected JSON file, normalizes it through `syncKeepNotes`, and opens windows for all merged notes.
-- `window:move` moves a sticky note window and persists only `x` and `y`.
-- `window:set-bounds` resizes or moves a sticky note window and persists `x`, `y`, `width`, and `height`.
-- `notes:show` focuses an existing sticky note window without mutating note content.
+- `window:move` moves a floating note window and persists only `x` and `y`.
+- `window:set-bounds` resizes or moves a floating note window and persists `x`, `y`, `width`, and `height`.
+- `notes:show` focuses an existing floating note window without mutating note content.
 
 ### Renderer Surface
 
 The dashboard renderer (`src/renderer.js`) renders cards, creates notes, deletes notes, imports JSON, opens Google Keep, and reacts to `notes:changed`.
 
-The sticky note renderer (`src/noteRenderer.js`) hydrates by `noteId`, receives `note:data`, writes title/body through `notes:patch`, implements drag with `window:move`, and resizes through `window:set-bounds`.
+The floating note renderer (`src/noteRenderer.js`) hydrates by `noteId`, receives `note:data`, writes title/body through `notes:patch`, implements drag with `window:move`, and resizes through `window:set-bounds`.
 
 ### Persistence
 
@@ -92,7 +92,7 @@ The sticky note renderer (`src/noteRenderer.js`) hydrates by `noteId`, receives 
 
 ## High-Priority Debug Findings
 
-### 1. Sticky Note Resize IPC Is Functionally Incomplete
+### 1. Floating Note Resize IPC Is Functionally Incomplete
 
 Status: Resolved in the current code through `window:set-bounds`.
 
@@ -250,18 +250,18 @@ Evidence:
 
 Failure mode:
 
-Clicking a card updates `updatedAt` even when the user has not changed note content. This creates false modification history and can trigger `syncNoteWindow(updated)`, which may steal focus or alter sticky-window state depending on future behavior.
+Clicking a card updates `updatedAt` even when the user has not changed note content. This creates false modification history and can trigger `syncNoteWindow(updated)`, which may steal focus or alter floating-window state depending on future behavior.
 
 Suggested remediation:
 
 - Replace the card click mutation with a dedicated `notes:show` or `notes:focus` IPC.
-- If the intent is to open or focus the sticky window, do that explicitly in the main process without mutating the note.
+- If the intent is to open or focus the floating note window, do that explicitly in the main process without mutating the note.
 - If the intent is to normalize empty fields, perform schema normalization during load/import, not on click.
 
 Test probes:
 
 - Capture `updatedAt`, click the card, assert `updatedAt` is unchanged.
-- Assert a card click focuses or opens the sticky window via a separate IPC contract.
+- Assert a card click focuses or opens the floating note window via a separate IPC contract.
 
 ## Medium-Priority Debug Findings
 

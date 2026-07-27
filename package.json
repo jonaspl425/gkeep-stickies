@@ -1,20 +1,20 @@
 {
-  "name": "sticky-notes-desktop",
+  "name": "persistent-notes-desktop",
   "version": "1.0.0",
   "private": true,
   "author": "jonaspl",
-  "description": "Persistent desktop sticky notes with Google Keep account sync and import/export.",
+  "description": "Persistent desktop notes with Google Keep account sync and import/export.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "start:detached": "wscript.exe launch-sticky-notes.vbs",
+    "start:detached": "wscript.exe launch-persistent-notes.vbs",
     "test": "node --test",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win"
   },
   "build": {
-    "appId": "com.stickynotes.desktop",
-    "productName": "Sticky Notes",
+    "appId": "com.persistentnotes.desktop",
+    "productName": "Persistent Notes",
     "asar": false,
     "directories": {
       "output": "dist"

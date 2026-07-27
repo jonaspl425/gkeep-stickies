@@ -1,11 +1,25 @@
 const fs = require('fs');
 const path = require('path');
 
-function createCredentialStore(app, safeStorage) {
+function createCredentialStore(app, safeStorage, options = {}) {
   const credentialsPath = path.join(app.getPath('userData'), 'keep-credentials.json');
+  const migrateFrom = typeof options.migrateFrom === 'string' ? options.migrateFrom : null;
 
   function ensureDir() {
     fs.mkdirSync(path.dirname(credentialsPath), { recursive: true });
+  }
+
+  function migrateLegacyCredentials() {
+    if (!migrateFrom || fs.existsSync(credentialsPath)) {
+      return;
+    }
+
+    const sourcePath = path.resolve(migrateFrom);
+    const targetPath = path.resolve(credentialsPath);
+    if (sourcePath !== targetPath && fs.existsSync(sourcePath)) {
+      ensureDir();
+      fs.copyFileSync(sourcePath, targetPath);
+    }
   }
 
   function encrypt(value) {
@@ -44,6 +58,7 @@ function createCredentialStore(app, safeStorage) {
   }
 
   function load() {
+    migrateLegacyCredentials();
     if (!fs.existsSync(credentialsPath)) {
       return null;
     }
@@ -58,6 +73,7 @@ function createCredentialStore(app, safeStorage) {
   }
 
   function getStatus() {
+    migrateLegacyCredentials();
     if (!fs.existsSync(credentialsPath)) {
       return null;
     }

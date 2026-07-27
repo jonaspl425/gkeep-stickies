@@ -6,7 +6,7 @@ const path = require('path');
 const { createNoteStore } = require('../src/notesStore');
 
 test('reset notes remains empty after load', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const store = createNoteStore(path.join(dir, 'notes.json'));
 
   assert.equal(store.loadNotes({ seedDefaults: true }).length, 2);
@@ -18,7 +18,7 @@ test('reset notes remains empty after load', () => {
 });
 
 test('load notes recovers corrupt JSON into a quarantined file', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const storagePath = path.join(dir, 'notes.json');
   fs.writeFileSync(storagePath, '{', 'utf8');
 
@@ -33,7 +33,7 @@ test('load notes recovers corrupt JSON into a quarantined file', () => {
 });
 
 test('load notes migrates an existing legacy notes file once', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const legacyPath = path.join(dir, 'legacy-notes.json');
   const storagePath = path.join(dir, 'notes.json');
   fs.writeFileSync(legacyPath, JSON.stringify([{ id: 'legacy-1', title: 'Legacy note' }]), 'utf8');
@@ -49,7 +49,7 @@ test('load notes migrates an existing legacy notes file once', () => {
 });
 
 test('save notes writes valid JSON without leaving temp files', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const storagePath = path.join(dir, 'notes.json');
   const store = createNoteStore(storagePath);
 
@@ -63,7 +63,7 @@ test('save notes writes valid JSON without leaving temp files', () => {
 });
 
 test('create note sanitizes unsafe fields', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const store = createNoteStore(path.join(dir, 'notes.json'));
   const note = store.createNote({
     title: 't'.repeat(250),
@@ -101,7 +101,7 @@ test('create note sanitizes unsafe fields', () => {
 });
 
 test('save notes drops non-note values and sanitizes records', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const storagePath = path.join(dir, 'notes.json');
   const store = createNoteStore(storagePath);
 
@@ -135,7 +135,7 @@ test('save notes drops non-note values and sanitizes records', () => {
 });
 
 test('patch note persists position lock state', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const store = createNoteStore(path.join(dir, 'notes.json'));
   const note = store.createNote({ title: 'Lock me' });
 
@@ -145,8 +145,19 @@ test('patch note persists position lock state', () => {
   assert.equal(store.loadNotes()[0].positionLocked, true);
 });
 
+test('patch note persists dashboard pinned state', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
+  const store = createNoteStore(path.join(dir, 'notes.json'));
+  const note = store.createNote({ title: 'Pin me' });
+
+  const updated = store.patchNote(note.id, { dashboardPinned: true });
+
+  assert.equal(updated.dashboardPinned, true);
+  assert.equal(store.loadNotes()[0].dashboardPinned, true);
+});
+
 test('create note preserves a blank title', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const store = createNoteStore(path.join(dir, 'notes.json'));
   const note = store.createNote({ body: 'Body without a title' });
 
@@ -155,7 +166,7 @@ test('create note preserves a blank title', () => {
 });
 
 test('mark synced keeps newer dirty edits', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const store = createNoteStore(path.join(dir, 'notes.json'));
   const note = store.createNote({ title: 'Draft', body: 'One' });
   const firstDirty = store.markNoteDirty(note.id, ['body']);
@@ -173,7 +184,7 @@ test('mark synced keeps newer dirty edits', () => {
 });
 
 test('reorder notes persists requested order and keeps unmentioned notes', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sticky-notes-store-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'persistent-notes-store-'));
   const store = createNoteStore(path.join(dir, 'notes.json'));
   const first = store.createNote({ title: 'First' });
   const second = store.createNote({ title: 'Second' });

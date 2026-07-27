@@ -15,7 +15,7 @@ electronCmd = projectRoot & "\node_modules\.bin\electron.cmd"
 shell.CurrentDirectory = projectRoot
 
 If Not fso.FileExists(electronCmd) Then
-  MsgBox "Electron is not installed. Run npm install first.", vbExclamation, "Sticky Notes"
+  MsgBox "Electron is not installed. Run npm install first.", vbExclamation, "Persistent Notes"
   WScript.Quit 1
 End If
 

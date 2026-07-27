@@ -2,17 +2,17 @@
 
 Status: Implemented
 
-The core fix is now present in the app: sticky note windows load with a `noteId` query parameter, the renderer can pull its note through `notes:get-one`, and missing notes close deterministically instead of remaining as unusable blank windows.
+The core fix is now present in the app: floating note windows load with a `noteId` query parameter, the renderer can pull its note through `notes:get-one`, and missing notes close deterministically instead of remaining as unusable blank windows.
 
 ## Problem
 
-The app can produce "ghost notes": sticky note windows that appear blank or transparent and cannot be dragged, resized, pinned, edited, or deleted.
+The app can produce "ghost notes": floating note windows that appear blank or transparent and cannot be dragged, resized, pinned, edited, or deleted.
 
-The most likely failure mode is that a sticky note `BrowserWindow` is created and shown before its renderer has received the `note:data` IPC message. In `src/noteRenderer.js`, most note interactions depend on `currentNote` being set. If that IPC payload is missed or delayed, `currentNote` remains `null`, so the sticky window exists but cannot be manipulated.
+The most likely failure mode is that a floating note `BrowserWindow` is created and shown before its renderer has received the `note:data` IPC message. In `src/noteRenderer.js`, most note interactions depend on `currentNote` being set. If that IPC payload is missed or delayed, `currentNote` remains `null`, so the floating window exists but cannot be manipulated.
 
 ## Former Fragile Flow
 
-In `src/main.js`, `ensureStickyWindow(note)` creates a note window, loads `note.html`, and sends the note through IPC:
+In `src/main.js`, `ensureFloatingNoteWindow(note)` creates a note window, loads `note.html`, and sends the note through IPC:
 
 ```js
 window.loadFile(path.join(__dirname, 'note.html'));
@@ -38,13 +38,13 @@ If the message does not arrive, the renderer has no note ID, no backing state, a
 
 ## Implemented Fix
 
-Sticky note initialization is now pull-based and deterministic. Each note window receives its note ID from the URL, then requests its own backing note from the main process on startup. `note:data` remains a live update channel, but initial hydration no longer depends on one pushed IPC event.
+Floating note initialization is now pull-based and deterministic. Each note window receives its note ID from the URL, then requests its own backing note from the main process on startup. `note:data` remains a live update channel, but initial hydration no longer depends on one pushed IPC event.
 
 ## Implemented Steps
 
 ### 1. Load `note.html` With A Note ID
 
-`ensureStickyWindow(note)` in `src/main.js` loads the note window with:
+`ensureFloatingNoteWindow(note)` in `src/main.js` loads the note window with:
 
 ```js
 window.loadFile(path.join(__dirname, 'note.html'), {
@@ -52,7 +52,7 @@ window.loadFile(path.join(__dirname, 'note.html'), {
 });
 ```
 
-This gives each sticky renderer a stable identity even if an IPC event is missed.
+This gives each floating note renderer a stable identity even if an IPC event is missed.
 
 ### 2. Add A Single-Note Lookup Handler
 
@@ -156,7 +156,7 @@ This makes every note window self-recovering after load.
 
 ### 6. Add A Safe Visual Default
 
-`src/styles.css` ensures the sticky note is never visually transparent while waiting for state:
+`src/styles.css` ensures the floating note is never visually transparent while waiting for state:
 
 ```css
 .note-window .note-card {
@@ -181,10 +181,10 @@ Status: Implemented.
 If a note no longer exists in storage, the main process can proactively close the orphaned window:
 
 ```js
-function closeMissingStickyWindows(notes) {
+function closeMissingFloatingNoteWindows(notes) {
   const liveIds = new Set(notes.map((note) => note.id));
 
-  for (const [id, window] of stickyWindows) {
+  for (const [id, window] of floatingNoteWindows) {
     if (!liveIds.has(id) && !window.isDestroyed()) {
       window.close();
     }
@@ -192,23 +192,23 @@ function closeMissingStickyWindows(notes) {
 }
 ```
 
-The app calls this after delete, import, sync, and app startup reconciliation. Clearing notes destroys all sticky windows directly.
+The app calls this after delete, import, sync, and app startup reconciliation. Clearing notes destroys all floating note windows directly.
 
 ## Regression Tests
 
 Recommended tests:
 
-1. Sticky window loads with a `noteId` query param.
+1. Floating note window loads with a `noteId` query param.
 2. `notes:get-one` returns the correct note.
 3. `notes:get-one` returns `null` for a missing note.
 4. `noteRenderer` can hydrate from `getNote()` without receiving `note:data`.
 5. A missing note enters a deterministic missing state instead of creating a transparent ghost.
-6. Deleting or clearing notes closes orphaned sticky windows.
+6. Deleting or clearing notes closes orphaned floating note windows.
 
 Current automated coverage directly exercises the store lookup portion. Renderer and BrowserWindow lifecycle coverage should still be added with an Electron-aware test harness.
 
 ## Result
 
-After this fix, a sticky note window no longer depends on a single pushed IPC event for initial state. If the renderer starts late, reloads, or misses `note:data`, it can still recover by reading its `noteId` from the URL and asking the main process for the canonical note.
+After this fix, a floating note window no longer depends on a single pushed IPC event for initial state. If the renderer starts late, reloads, or misses `note:data`, it can still recover by reading its `noteId` from the URL and asking the main process for the canonical note.
 
 This should eliminate transparent, non-manipulable ghost notes and make note-window lifecycle bugs easier to diagnose.

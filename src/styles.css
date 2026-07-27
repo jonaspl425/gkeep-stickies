@@ -1,6 +1,15 @@
 :root {
   color-scheme: light dark;
-  font-family: 'Segoe UI', sans-serif;
+  --ui-font: 'Arial Rounded MT Bold', 'Segoe UI Rounded', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
+  --note-font: Roboto, Arial, sans-serif;
+  font-family: var(--ui-font);
+  --dashboard-note-size: 240px;
+  --dashboard-note-gap: 16px;
+  --note-content-font-size: 16px;
+  --note-title-font-weight: 700;
+  --note-text-color: #202124;
+  --note-border-color: #dadce0;
+  --note-surface: #fff;
 }
 
 * {
@@ -13,6 +22,28 @@ body {
   background: #f8f7f4;
   color: #202124;
   -webkit-font-smoothing: antialiased;
+}
+
+button,
+select,
+.app-heading,
+.header-right,
+.settings-dropdown,
+.modal,
+.list-card small {
+  font-family: var(--ui-font);
+}
+
+.dashboard-window {
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-window::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .app-shell {
@@ -37,8 +68,24 @@ body {
 .app-heading h1 {
   margin: 0;
   color: #202124;
-  font-size: 1.55rem;
+  font-size: 1.7rem;
+  font-weight: 900;
   line-height: 1.15;
+}
+
+.trademark-symbol {
+  margin-left: 2px;
+  font-size: 0.42em;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.header-right {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  min-width: 0;
 }
 
 .header-actions {
@@ -52,8 +99,8 @@ body {
 .keep-status-card {
   display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 0;
   padding: 0;
   border-radius: 8px;
   background: transparent;
@@ -66,6 +113,7 @@ body {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  justify-content: flex-end;
 }
 
 .keep-status-pill {
@@ -91,6 +139,18 @@ body {
 .keep-status-text {
   color: #5f6368;
   line-height: 1.32;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .sync-state-synced,
@@ -160,6 +220,19 @@ button.secondary {
   stroke-linejoin: round;
 }
 
+.toolbar-icon-img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.toolbar-icon-btn:hover .toolbar-icon-img,
+.toolbar-icon-btn:focus-visible .toolbar-icon-img {
+  opacity: 0.76;
+}
+
 .settings-menu-shell {
   position: relative;
   display: inline-flex;
@@ -196,21 +269,36 @@ button.secondary {
 
 .note-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--dashboard-note-size), var(--dashboard-note-size)));
+  grid-auto-rows: var(--dashboard-note-size);
+  grid-auto-flow: row dense;
+  gap: var(--dashboard-note-gap);
+  align-items: start;
+  justify-content: start;
+}
+
+.dashboard-pin-section {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(60, 64, 67, 0.14);
+}
+
+.pinned-note-grid {
+  min-height: var(--dashboard-note-size);
 }
 
 .note-card {
   border-radius: 8px;
-  border: 1px solid rgba(32, 33, 36, 0.14);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  padding: 12px;
+  border: 1px solid var(--note-border-color);
+  box-shadow: none;
+  padding: 10px;
   min-height: 160px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   user-select: none;
-  color: #111;
+  color: var(--note-text-color);
+  font-family: var(--note-font);
 }
 
 .note-window {
@@ -222,14 +310,15 @@ button.secondary {
 
 .note-window .note-card {
   height: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--note-border-color);
   border-radius: 8px;
   margin: 0;
   position: relative;
-  background: #fff;
-  color: #111;
+  background: var(--note-surface);
+  color: var(--note-text-color);
   overflow: hidden;
-  padding: 48px 24px 56px;
+  padding: 26px 18px 72px;
+  box-shadow: 0 2px 6px rgba(60, 64, 67, 0.3);
   -webkit-app-region: drag;
 }
 
@@ -256,15 +345,16 @@ button.secondary {
 
 .note-window input,
 .note-window textarea {
+  font-family: var(--note-font);
   user-select: text;
-  color: #111;
-  caret-color: #111;
+  color: var(--note-text-color);
+  caret-color: var(--note-text-color);
   -webkit-app-region: no-drag;
 }
 
 .note-window input::placeholder,
 .note-window textarea::placeholder {
-  color: rgba(17, 17, 17, 0.58);
+  color: rgba(32, 33, 36, 0.58);
 }
 
 .icon-btn {
@@ -331,13 +421,18 @@ button.secondary {
 
 .note-top-controls {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 14px;
+  top: 20px;
+  left: 18px;
+  right: 24px;
   z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.note-window .note-top-controls {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .note-check-btn {
@@ -348,7 +443,7 @@ button.secondary {
   min-width: 30px;
   padding: 0;
   border-radius: 999px;
-  background: #111;
+  background: var(--note-text-color);
   color: #fff;
   box-shadow: 0 1px 3px rgba(60, 64, 67, 0.2);
   -webkit-app-region: no-drag;
@@ -462,9 +557,9 @@ textarea {
   width: 100%;
   min-width: 0;
   padding: 0;
-  font-size: 1.65rem;
-  font-weight: 400;
-  line-height: 1.3;
+  font-size: var(--note-content-font-size);
+  font-weight: var(--note-title-font-weight);
+  line-height: 1.42;
 }
 
 .note-window textarea,
@@ -476,7 +571,7 @@ textarea {
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding: 0 2px 18px 0;
-  font-size: 1.12rem;
+  font-size: var(--note-content-font-size);
   line-height: 1.42;
 }
 
@@ -497,28 +592,47 @@ textarea {
 
 .list-card {
   position: relative;
-  padding: 14px 40px 12px 48px;
-  cursor: pointer;
+  width: var(--dashboard-note-size);
+  height: var(--dashboard-note-size);
+  min-height: 0;
+  padding: 28px 16px 12px 38px;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.list-card:active {
+  cursor: grabbing;
 }
 
 .list-card .note-drag-handle,
+.list-card .note-dashboard-pin,
 .list-card .note-card-hide,
+.list-card .note-open-window,
 .list-card .note-lock-badge {
   opacity: 0;
   transition: opacity 120ms ease;
 }
 
 .list-card:hover .note-drag-handle,
+.list-card:hover .note-dashboard-pin,
 .list-card:hover .note-card-hide,
+.list-card:hover .note-open-window,
 .list-card:hover .note-lock-badge,
 .list-card:focus-within .note-drag-handle,
+.list-card:focus-within .note-dashboard-pin,
 .list-card:focus-within .note-card-hide,
+.list-card:focus-within .note-open-window,
 .list-card:focus-within .note-lock-badge {
+  opacity: 1;
+}
+
+.list-card.dashboard-pinned .note-dashboard-pin {
   opacity: 1;
 }
 
 .list-card.dragging {
   opacity: 0.46;
+  pointer-events: none;
   transform: scale(0.98);
 }
 
@@ -554,20 +668,49 @@ textarea {
 .list-card .note-card-hide {
   position: absolute;
   top: 8px;
+  right: 44px;
+}
+
+.list-card .note-open-window {
+  position: absolute;
+  top: 8px;
   right: 8px;
+}
+
+.list-card .note-dashboard-pin {
+  position: absolute;
+  top: 8px;
+  right: 80px;
+}
+
+.list-card .note-dashboard-pin[aria-pressed="true"] {
+  color: #202124;
+  background: rgba(32, 33, 36, 0.12);
+}
+
+.open-floating-icon {
+  display: block;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .note-lock-badge {
   position: absolute;
   top: 13px;
-  right: 42px;
+  right: 118px;
   display: inline-grid;
   place-items: center;
   opacity: 0.64;
   color: #111;
 }
 
-.note-content {
+.note-content,
+.dashboard-note-editor {
   display: flex;
   flex: 1;
   min-height: 0;
@@ -575,18 +718,66 @@ textarea {
   gap: 8px;
 }
 
+.dashboard-note-editor {
+  overflow: hidden;
+}
+
+.dashboard-title-input,
+.dashboard-body-input,
+.dashboard-body-preview {
+  font-family: var(--note-font);
+  width: 100%;
+  min-width: 0;
+  user-select: text;
+  cursor: text;
+}
+
+.dashboard-title-input {
+  flex: 0 0 auto;
+  font-size: var(--note-content-font-size);
+  font-weight: var(--note-title-font-weight);
+  line-height: 1.42;
+}
+
+.dashboard-body-input,
+.dashboard-body-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 2px 0 0;
+  overflow: auto;
+  font-size: var(--note-content-font-size);
+  line-height: 1.42;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-body-input::-webkit-scrollbar {
+  display: none;
+}
+
+.dashboard-body-preview {
+  cursor: text;
+}
+
+.dashboard-body-preview:focus-visible {
+  outline: 2px solid rgba(32, 33, 36, 0.38);
+  outline-offset: 2px;
+}
+
 .note-title {
   margin: 0;
-  padding-right: 18px;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.32;
+  padding-right: 8px;
+  font-family: var(--note-font);
+  font-size: var(--note-content-font-size);
+  font-weight: var(--note-title-font-weight);
+  line-height: 1.42;
   overflow-wrap: anywhere;
 }
 
 .note-body-display,
 .rich-text-display,
 .checklist-display {
+  font-family: var(--note-font);
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -610,8 +801,39 @@ textarea {
 .checklist-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
+}
+
+.checklist-drag-handle {
+  display: inline-flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  margin-top: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(32, 33, 36, 0.44);
+  cursor: grab;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  -webkit-app-region: no-drag;
+}
+
+.checklist-drag-handle:hover,
+.checklist-drag-handle:focus-visible {
+  background: rgba(32, 33, 36, 0.08);
+  color: rgba(32, 33, 36, 0.74);
+}
+
+.checklist-drag-handle:active {
+  cursor: grabbing;
 }
 
 .checklist-box {
@@ -620,13 +842,25 @@ textarea {
   align-items: center;
   justify-content: center;
   width: 16px;
+  min-width: 16px;
   height: 16px;
+  min-height: 16px;
+  padding: 0;
   margin-top: 1px;
   border: 2px solid rgba(32, 33, 36, 0.58);
   border-radius: 3px;
+  background: transparent;
+  color: #111;
+  cursor: pointer;
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
+}
+
+.checklist-box:hover,
+.checklist-box:focus-visible {
+  background: rgba(32, 33, 36, 0.1);
+  outline: none;
 }
 
 .checklist-text {
@@ -651,7 +885,7 @@ textarea {
   margin-top: 7px;
 }
 
-.checklist-item.completed .checklist-text {
+.checklist-item.completed {
   opacity: 0.62;
   text-decoration: line-through;
 }

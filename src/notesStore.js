@@ -140,6 +140,7 @@ function sanitizeNoteRecord(input = {}, options = {}) {
     height: sanitizeNumber(input.height, 220, MIN_HEIGHT),
     color: sanitizeColor(input.color),
     positionLocked: Boolean(input.positionLocked),
+    dashboardPinned: Boolean(input.dashboardPinned),
     createdAt: sanitizeDate(input.createdAt, now),
     updatedAt: sanitizeDate(input.updatedAt, now),
     importedFromKeep: Boolean(input.importedFromKeep)
@@ -327,6 +328,7 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
       height: input.height ?? 220,
       color: input.color || DEFAULT_COLOR,
       positionLocked: Boolean(input.positionLocked),
+      dashboardPinned: Boolean(input.dashboardPinned),
       createdAt: input.createdAt || now,
       updatedAt: now,
       importedFromKeep: Boolean(input.importedFromKeep),
@@ -362,7 +364,7 @@ function createNoteStore(storagePath = path.join(__dirname, '..', 'data', 'notes
       throw new Error(`Note ${id} not found`);
     }
 
-    const allowedFields = ['title', 'body', 'x', 'y', 'width', 'height', 'color', 'positionLocked'];
+    const allowedFields = ['title', 'body', 'x', 'y', 'width', 'height', 'color', 'positionLocked', 'dashboardPinned'];
     const sanitizedPatch = Object.fromEntries(
       Object.entries(patch).filter(([key]) => allowedFields.includes(key))
     );
